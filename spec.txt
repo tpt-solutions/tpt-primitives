@@ -1,0 +1,563 @@
+TPT Primitives — Cross-Project Design Specification
+
+Status
+
+Foundational architecture / shared design rules.
+
+1. Purpose
+
+The three projects—Fabric, Repro and Concord—should not become isolated frameworks.
+
+They should establish a small set of new, composable TPT primitives that can be reused across the wider ecosystem.
+
+This document defines those shared primitives and the rules for keeping them coherent.
+
+2. The central chain
+
+The intended relationship is:
+
+SPECIFICATION
+     │
+     ▼
+COMPUTATION
+     │
+     ▼
+INTENT
+     │
+     ▼
+RESERVATION
+     │
+     ▼
+EXECUTION
+     │
+     ▼
+ARTIFACT
+     │
+     ▼
+EVIDENCE
+     │
+     ▼
+CLAIM
+
+Where:
+
+Concord owns specification, evidence and claim semantics.
+
+Repro owns computation, derivation and artifact identity.
+
+Fabric owns intent, reservation and execution-world semantics.
+
+3. Canonical identity
+
+Every important object should have a stable canonical identity.
+
+Initial shared identity classes:
+
+SpecificationID
+ModelID
+ImplementationID
+ComputationID
+IntentID
+ReservationID
+ExecutionID
+ArtifactID
+TraceID
+EvidenceID
+ClaimID
+CapabilityID
+EpochID
+CounterexampleID
+ProvenanceID
+
+Identity must be derived from canonical semantics, not:
+
+filenames
+
+database auto-increment IDs
+
+memory addresses
+
+mutable labels
+
+wall-clock timestamps
+
+4. Canonical object rule
+
+An object that participates in identity must have:
+
+canonical representation
+
+explicit schema version
+
+deterministic encoding
+
+deterministic identity derivation
+
+explicit evolution rules
+
+Changing irrelevant presentation must not change identity.
+
+Changing semantics must.
+
+5. Capability primitive
+
+Capabilities represent authority.
+
+A capability should be:
+
+explicit
+
+transferable
+
+attenuable where appropriate
+
+revocable where required
+
+bound to an authority domain
+
+optionally bound to an epoch/lease
+
+Fabric owns the runtime semantics.
+
+Concord can specify/prove capability invariants.
+
+6. Lease + epoch primitive
+
+Leases provide temporal authority.
+
+Epochs provide distributed invalidation.
+
+Together they address stale authority:
+
+capability
+    +
+lease
+    +
+epoch
+    ↓
+valid authority
+
+After an epoch transition, an old capability must fail according to the defined semantics.
+
+7. Intent primitive
+
+Intent describes desired computation before execution.
+
+An Intent can reference a Repro ComputationID.
+
+Example:
+
+Intent
+ ├── computation
+ ├── capabilities
+ ├── resources
+ ├── locality
+ ├── deadline
+ ├── durability
+ └── failure policy
+
+Fabric owns execution semantics.
+
+8. Reservation primitive
+
+A Reservation is a first-class claim on resources/authority.
+
+This allows systems to reason about:
+
+requested
+   ↓
+reserved
+   ↓
+committed
+   ↓
+running
+   ↓
+released
+
+Reservations must have explicit expiry and failure semantics.
+
+9. Computation primitive
+
+A Computation is not merely a command.
+
+It is a canonical semantic object describing:
+
+operation
+
+inputs
+
+dependencies
+
+environment
+
+platform
+
+toolchain
+
+resource policy
+
+determinism policy
+
+Repro owns this primitive.
+
+10. Derivation primitive
+
+An artifact should carry a relationship to the computation that produced it.
+
+input artifacts
+      +
+ComputationID
+      ↓
+DerivationID
+      ↓
+output artifact
+
+This permits lineage and independent verification.
+
+11. Execution primitive
+
+Execution represents a particular realisation of a computation.
+
+It must record enough information to distinguish:
+
+same computation
+    ≠
+same execution
+
+This is important for reproducibility and failure analysis.
+
+12. Trace primitive
+
+A Trace is a canonical representation of relevant execution events.
+
+Requirements:
+
+stable event identity
+
+causal relationships
+
+deterministic normalization
+
+replay support
+
+divergence detection
+
+Fabric owns distributed traces; Concord consumes them for conformance.
+
+13. Evidence primitive
+
+Evidence is not a boolean.
+
+Evidence is typed, scoped and addressable.
+
+Examples:
+
+Proof
+ModelCheck
+Conformance
+Simulation
+PropertyTest
+FuzzCampaign
+DifferentialCheck
+Benchmark
+
+Each evidence object must identify:
+
+subject
+
+property/obligation
+
+environment
+
+toolchain
+
+assumptions
+
+result
+
+identity
+
+Concord owns this primitive.
+
+14. Claim primitive
+
+A Claim is a machine-readable assurance statement.
+
+A Claim must reference:
+
+subject
+
+property
+
+scope
+
+assumptions
+
+required obligations
+
+supporting evidence
+
+Claims may depend on other Claims.
+
+This creates the Assurance Graph.
+
+15. Counterexample primitive
+
+Failures discovered through simulation, testing, fuzzing or proof should be represented uniformly.
+
+A Counterexample contains:
+
+subject
+
+specification
+
+input/state
+
+trace
+
+environment
+
+observed violation
+
+This allows failures to become regression/conformance artifacts rather than disappearing into test logs.
+
+16. Deterministic world primitive
+
+Fabric simulation and Repro execution both need controlled execution environments.
+
+The ecosystem should converge on a concept of a canonical Execution World describing:
+
+time model
+
+platform
+
+available resources
+
+capabilities
+
+filesystem/object state
+
+network policy
+
+randomness policy
+
+environment variables
+
+external dependencies
+
+A computation can then state what parts of the world are semantically relevant.
+
+17. Reproduction primitive
+
+A Reproduction Request means:
+
+Recreate the derivation represented by this ComputationID under this permitted world/policy.
+
+The result must explicitly report:
+
+reproduced
+
+reproduced with substitution
+
+equivalent but non-identical
+
+failed
+
+indeterminate
+
+18. Assurance composition
+
+A high-level claim may depend on lower-level claims.
+
+Example:
+
+Claim:
+"Transaction recovery is safe."
+
+depends on:
+
+Claim A:
+"WAL replay preserves committed records."
+
+Claim B:
+"Page checksum detects corruption under model X."
+
+Claim C:
+"Implementation conforms to recovery model."
+
+Each claim can have different evidence.
+
+This avoids pretending the entire system is proven when only selected properties are.
+
+## 19. Separation of trust
+
+The three projects must preserve a small trust boundary.
+
+### Fabric trusts
+
+- core semantics
+- transport implementations only for their declared guarantees
+
+### Repro trusts
+
+- canonicalization
+- hashing
+- artifact storage integrity
+- execution records
+
+### Concord trusts
+
+- evidence validity according to its evidence type
+- external proof kernels where used
+- its own canonical assurance model
+
+AI is never part of the trusted base.
+
+## 20. Interoperability
+
+The first cross-project integration should be deliberately small:
+
+```text
+Repro:
+ComputationID
+
+       ↓
+
+Fabric:
+Intent(ComputationID)
+
+       ↓
+
+Fabric:
+ExecutionID + TraceID
+
+       ↓
+
+Repro:
+ArtifactID + ProvenanceID
+
+       ↓
+
+Concord:
+EvidenceID + ClaimID
+
+This single flow demonstrates the architecture without requiring all three projects to be mature.
+
+21. Design rule: primitives before adapters
+
+Do not begin with:
+
+Kubernetes integration
+
+OCI integration
+
+Git integration
+
+cloud-specific storage
+
+CI integrations
+
+AI-provider integrations
+
+First establish the primitives.
+
+Adapters are useful only after the semantic core is stable.
+
+22. Design rule: simulation is architectural
+
+A deterministic simulator is not "just for tests".
+
+If a system cannot represent its important state transitions independently of real-world timing and infrastructure, its semantics are probably insufficiently explicit.
+
+23. Design rule: proof is not the only evidence
+
+Formal proof is preferred where feasible, but the architecture must support properties that cannot reasonably be proven.
+
+Use:
+
+proof
++
+model checking
++
+simulation
++
+conformance
++
+property testing
++
+fuzzing
++
+differential testing
+
+in a clearly distinguished evidence hierarchy.
+
+24. Design rule: never claim more than the evidence
+
+The system should make it mechanically difficult to say:
+
+"This component is verified."
+
+when only a subset of properties is proven.
+
+Instead:
+
+Property P:
+fully_proven
+
+Property Q:
+model_checked
+
+Property R:
+fuzz_tested
+
+Property S:
+unknown
+
+25. Long-term architectural outcome
+
+The desired TPT model is:
+
+              CONCORD
+          "why trust it?"
+                ▲
+                │
+             evidence
+                │
+              REPRO
+          "what happened?"
+                ▲
+                │
+             execution
+                │
+              FABRIC
+         "where/how ran?"
+                │
+        ┌───────┼────────┐
+        │       │        │
+      Boxcar  Archon  Keystone
+        │       │        │
+        └───────┼────────┘
+                │
+          TPT applications
+
+The three projects therefore establish complementary primitives rather than three competing products.
+
+26. Success criterion
+
+The architecture succeeds if an arbitrary important TPT operation can eventually answer, mechanically:
+
+What did we intend to compute?
+
+What exact computation was defined?
+
+Where and under what authority did it execute?
+
+What exactly did it produce?
+
+How was the result derived?
+
+What evidence do we have about correctness?
+
+What remains unknown?
+
+That is the shared foundation these projects should build.
