@@ -1,0 +1,19 @@
+[package]
+name = "schema-gen"
+description = "Generates JSON Schema and CDDL definitions for tpt-primitives canonical types"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+tpt-primitives = { path = "../tpt-primitives" }
+schemars = "1"
+
+[[bin]]
+name = "schema-gen"
+path = "src/main.rs"
+
+[lints]
+workspace = true

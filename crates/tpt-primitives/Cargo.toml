@@ -1,0 +1,20 @@
+[package]
+name = "tpt-primitives"
+description = "Foundational shared primitives for the Fabric / Repro / Concord ecosystem"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords = ["tpt", "capability", "provenance", "assurance", "reproducibility"]
+categories = ["data-structures"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+ciborium = "0.2"
+sha2 = "0.10"
+schemars = "1"
+
+[lints]
+workspace = true

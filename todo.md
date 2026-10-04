@@ -9,31 +9,31 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 ---
 
 ## Phase 0 — Project Setup & Governance
-- [ ] Initialize git repository
-- [ ] Decide crate/workspace layout (e.g. `tpt-primitives` core crate + a schema-gen tool crate/xtask)
-- [ ] Scaffold Cargo workspace (`Cargo.toml`, crate directories)
-- [ ] Add `LICENSE-MIT` and `LICENSE-APACHE` (copyright TPT Solutions), set `license = "MIT OR Apache-2.0"` in Cargo.toml(s)
-- [ ] Write root `README.md` (purpose, spec reference, scope boundary, license)
-- [ ] Set up CI (build, test, `cargo fmt --check`, `cargo clippy`)
-- [ ] Set up `CHANGELOG.md` and versioning policy (semver, starting at 0.1.0)
-- [ ] Decide and document canonical encoding scheme (e.g. deterministic CBOR or JCS) and hash function (e.g. BLAKE3 or SHA-256) used for identity derivation (ADR / `docs/decisions/`)
+- [x] Initialize git repository
+- [x] Decide crate/workspace layout (e.g. `tpt-primitives` core crate + a schema-gen tool crate/xtask)
+- [x] Scaffold Cargo workspace (`Cargo.toml`, crate directories)
+- [x] Add `LICENSE-MIT` and `LICENSE-APACHE` (copyright TPT Solutions), set `license = "MIT OR Apache-2.0"` in Cargo.toml(s)
+- [x] Write root `README.md` (purpose, spec reference, scope boundary, license)
+- [x] Set up CI (build, test, `cargo fmt --check`, `cargo clippy`)
+- [x] Set up `CHANGELOG.md` and versioning policy (semver, starting at 0.1.0)
+- [x] Decide and document canonical encoding scheme (e.g. deterministic CBOR or JCS) and hash function (e.g. BLAKE3 or SHA-256) used for identity derivation (ADR / `docs/decisions/`)
 
 ## Phase 1 — Canonical Object Framework (spec §3–4)
-- [ ] Define the "canonical object" contract: canonical representation, explicit schema version, deterministic encoding, deterministic identity derivation, explicit evolution rules
-- [ ] Implement deterministic encoding module (type → canonical bytes)
-- [ ] Implement identity derivation module (canonical bytes → stable ID, via chosen hash function)
-- [ ] Define generic ID newtype pattern (e.g. `Id<T>`) shared by all identity classes
-- [ ] Define schema-versioning/evolution strategy (what counts as a breaking vs. non-breaking change)
-- [ ] Build schema-generation tool: derive JSON Schema/CDDL output from Rust types
-- [ ] Tests: identity is stable across irrelevant presentation changes; identity changes when semantics change
+- [x] Define the "canonical object" contract: canonical representation, explicit schema version, deterministic encoding, deterministic identity derivation, explicit evolution rules
+- [x] Implement deterministic encoding module (type → canonical bytes)
+- [x] Implement identity derivation module (canonical bytes → stable ID, via chosen hash function)
+- [x] Define generic ID newtype pattern (e.g. `Id<T>`) shared by all identity classes
+- [x] Define schema-versioning/evolution strategy (what counts as a breaking vs. non-breaking change)
+- [x] Build schema-generation tool: derive JSON Schema/CDDL output from Rust types
+- [x] Tests: identity is stable across irrelevant presentation changes; identity changes when semantics change
 
 ## Phase 2 — Core Identity Types (spec §3)
-- [ ] `SpecificationID`, `ModelID`, `ImplementationID`
-- [ ] `ComputationID`, `IntentID`, `ReservationID`
-- [ ] `ExecutionID`, `ArtifactID`, `TraceID`
-- [ ] `EvidenceID`, `ClaimID`, `CapabilityID`
-- [ ] `EpochID`, `CounterexampleID`, `ProvenanceID`
-- [ ] Unit tests + generated schema entries for each ID type
+- [x] `SpecificationID`, `ModelID`, `ImplementationID`
+- [x] `ComputationID`, `IntentID`, `ReservationID`
+- [x] `ExecutionID`, `ArtifactID`, `TraceID`
+- [x] `EvidenceID`, `ClaimID`, `CapabilityID`
+- [x] `EpochID`, `CounterexampleID`, `ProvenanceID`
+- [x] Unit tests + generated schema entries for each ID type
 
 ## Phase 3 — Capability + Lease/Epoch Primitives (spec §5–6)
 - [ ] `Capability` type: explicit, transferable, attenuable, revocable, bound to authority domain, optional epoch/lease binding
