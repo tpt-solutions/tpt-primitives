@@ -6,7 +6,7 @@
 //! - an explicit schema version ([`Canonical::SCHEMA_VERSION`])
 //! - a deterministic encoding ([`Canonical::canonical_bytes`], ADR 0001)
 //! - a deterministic identity derivation ([`Identified::identity`])
-//! - explicit evolution rules ([`docs/evolution.md`])
+//! - explicit evolution rules (`docs/evolution.md`)
 //!
 //! Changing irrelevant presentation must not change identity; changing
 //! semantics must.

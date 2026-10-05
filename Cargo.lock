@@ -167,6 +167,7 @@ name = "schema-gen"
 version = "0.1.0"
 dependencies = [
  "schemars",
+ "serde_json",
  "tpt-primitives",
 ]
 

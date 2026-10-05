@@ -2,7 +2,7 @@
 //!
 //! Shared by computations (spec §9), evidence (spec §13) and execution
 //! worlds (spec §16). All content is deterministic: variables are a
-//! `BTreeMap` of [`PrimitiveValue`]s (ADR 0001).
+//! `BTreeMap` of [`PrimitiveValue`][crate::value::PrimitiveValue]s (ADR 0001).
 
 use crate::value::PrimitiveMap;
 use serde::{Deserialize, Serialize};

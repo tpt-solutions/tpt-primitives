@@ -76,21 +76,21 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [x] Tests
 
 ## Phase 9 — Trust Boundary Documentation (spec §19)
-- [ ] Document what Fabric trusts (core semantics, declared transport guarantees)
-- [ ] Document what Repro trusts (canonicalization, hashing, artifact storage integrity, execution records)
-- [ ] Document what Concord trusts (evidence validity per type, external proof kernels, its own assurance model)
-- [ ] Explicitly document: AI is never part of the trusted base
+- [x] Document what Fabric trusts (core semantics, declared transport guarantees)
+- [x] Document what Repro trusts (canonicalization, hashing, artifact storage integrity, execution records)
+- [x] Document what Concord trusts (evidence validity per type, external proof kernels, its own assurance model)
+- [x] Explicitly document: AI is never part of the trusted base
 
 ## Phase 10 — Cross-Project Interop Shape (spec §20, type-level only)
-- [ ] Type-level example/integration test wiring: `ComputationID` → `Intent` → `ExecutionID`+`TraceID` → `ArtifactID`+`ProvenanceID` → `EvidenceID`+`ClaimID`
-- [ ] Confirm this validates composability only — no real execution/adapter logic (per design rule §21)
+- [x] Type-level example/integration test wiring: `ComputationID` → `Intent` → `ExecutionID`+`TraceID` → `ArtifactID`+`ProvenanceID` → `EvidenceID`+`ClaimID`
+- [x] Confirm this validates composability only — no real execution/adapter logic (per design rule §21)
 
 ## Phase 11 — Schema Export & Documentation
-- [ ] Wire schema-generation tool into CI (fail build if generated schemas drift from types)
-- [ ] Check generated JSON Schema/CDDL files into `schemas/`
-- [ ] Rustdoc pass across all public types
-- [ ] Architecture docs mapping each module back to its spec section
-- [ ] Write up design rules as docs: primitives-before-adapters (§21), simulation-is-architectural (§22), proof-is-not-only-evidence (§23)
+- [x] Wire schema-generation tool into CI (fail build if generated schemas drift from types)
+- [x] Check generated JSON Schema/CDDL files into `schemas/`
+- [x] Rustdoc pass across all public types
+- [x] Architecture docs mapping each module back to its spec section
+- [x] Write up design rules as docs: primitives-before-adapters (§21), simulation-is-architectural (§22), proof-is-not-only-evidence (§23)
 
 ## Phase 12 — Release Readiness
 - [ ] Full test suite green, clippy/fmt clean
