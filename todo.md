@@ -93,8 +93,8 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [x] Write up design rules as docs: primitives-before-adapters (§21), simulation-is-architectural (§22), proof-is-not-only-evidence (§23)
 
 ## Phase 12 — Release Readiness
-- [ ] Full test suite green, clippy/fmt clean
-- [ ] Review against the success criterion (§26): can the primitives collectively answer all 7 questions (intended computation, exact computation, where/under what authority, what was produced, how derived, what evidence, what remains unknown)?
-- [ ] Finalize `CHANGELOG.md` for 0.1.0
-- [ ] Tag `v0.1.0`
-- [ ] Decide on crates.io publication (or hold private pending Fabric/Repro/Concord integration)
+- [x] Full test suite green, clippy/fmt clean
+- [x] Review against the success criterion (§26): all 7 questions answered mechanically by the primitives — demonstrated in `tests/interop.rs` and tabulated in README (Success criterion section)
+- [x] Finalize `CHANGELOG.md` for 0.1.0
+- [x] Tag `v0.1.0`
+- [x] Decide on crates.io publication — holding private pending Fabric/Repro/Concord integration; revisit at first cross-project integration

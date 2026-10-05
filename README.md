@@ -56,6 +56,21 @@ and `ProvenanceId`, all instances of the generic `Id<T>` newtype.
 - `docs/decisions/` — architecture decision records (encoding, hashing, time model).
 - `docs/` — architecture mapping, trust boundaries, design rules, evolution policy.
 
+## Success criterion (spec §26)
+
+The architecture succeeds if an arbitrary important TPT operation can
+answer, mechanically — `tests/interop.rs` demonstrates each answer:
+
+| Question | Answered by |
+|----------|-------------|
+| What did we intend to compute? | `Intent::computation` → `ComputationId` |
+| What exact computation was defined? | `Computation::identity()` (canonical bytes) |
+| Where and under what authority did it execute? | `Execution::world` + `Intent::capabilities` + `valid_authority` |
+| What exactly did it produce? | `Execution::outcome` → `ArtifactId`s |
+| How was the result derived? | `Provenance { artifact, derivation, execution }` |
+| What evidence do we have about correctness? | `Claim::assess` per-property `AssuranceLevel` |
+| What remains unknown? | Properties without evidence read `unknown` — per spec §24 |
+
 ## License
 
 Dual-licensed under `MIT OR Apache-2.0`, at your option.
