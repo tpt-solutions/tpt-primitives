@@ -16,7 +16,7 @@ use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 
 /// A scalar value allowed in canonical content.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, schemars::JsonSchema)]
 #[schemars(rename_all = "snake_case")]
 pub enum PrimitiveValue {
     /// A UTF-8 string.
@@ -128,7 +128,8 @@ mod tests {
         ];
         for value in values {
             let bytes = crate::encoding::encode_envelope(1, &value);
-            let (v, back): (u16, PrimitiveValue) = crate::encoding::decode_envelope(&bytes).unwrap();
+            let (v, back): (u16, PrimitiveValue) =
+                crate::encoding::decode_envelope(&bytes).unwrap();
             assert_eq!(v, 1);
             assert_eq!(back, value);
         }

@@ -40,25 +40,25 @@ pub fn encode_envelope<T: Serialize + ?Sized>(schema_version: u16, payload: &T) 
 /// trailing bytes after the payload are rejected.
 pub fn decode_envelope<T: DeserializeOwned>(bytes: &[u8]) -> Result<(u16, T), CanonicalError> {
     let mut cursor = CountingCursor::new(bytes);
-    let header = cursor
-        .read_u8()
-        .ok_or(CanonicalError::NotAnEnvelope)?;
+    let header = cursor.read_u8().ok_or(CanonicalError::NotAnEnvelope)?;
     if header != ARRAY_OF_3 {
         return Err(CanonicalError::NotAnEnvelope);
     }
-    let magic: String = ciborium::de::from_reader(&mut cursor).map_err(cbor)?;
+    let magic: String = ciborium::de::from_reader(&mut cursor).map_err(|e| cbor(&e))?;
     if magic != ENVELOPE_MAGIC {
         return Err(CanonicalError::UnknownMagic(magic));
     }
-    let version: u16 = ciborium::de::from_reader(&mut cursor).map_err(cbor)?;
-    let payload: T = ciborium::de::from_reader(&mut cursor).map_err(cbor)?;
+    let version: u16 = ciborium::de::from_reader(&mut cursor).map_err(|e| cbor(&e))?;
+    let payload: T = ciborium::de::from_reader(&mut cursor).map_err(|e| cbor(&e))?;
     if cursor.position() != bytes.len() {
-        return Err(CanonicalError::TrailingBytes(bytes.len() - cursor.position()));
+        return Err(CanonicalError::TrailingBytes(
+            bytes.len() - cursor.position(),
+        ));
     }
     Ok((version, payload))
 }
 
-fn cbor(e: ciborium::de::Error<std::io::Error>) -> CanonicalError {
+fn cbor(e: &ciborium::de::Error<std::io::Error>) -> CanonicalError {
     CanonicalError::Decode(e.to_string())
 }
 
@@ -111,22 +111,34 @@ mod tests {
 
     #[test]
     fn rejects_bad_header() {
-        assert_eq!(decode_envelope::<String>(&[0x82, 0x01, 0x02]), Err(CanonicalError::NotAnEnvelope));
-        assert_eq!(decode_envelope::<String>(&[]), Err(CanonicalError::NotAnEnvelope));
+        assert_eq!(
+            decode_envelope::<String>(&[0x82, 0x01, 0x02]),
+            Err(CanonicalError::NotAnEnvelope)
+        );
+        assert_eq!(
+            decode_envelope::<String>(&[]),
+            Err(CanonicalError::NotAnEnvelope)
+        );
     }
 
     #[test]
     fn rejects_unknown_magic() {
         let mut buf = Vec::new();
         ciborium::ser::into_writer(&("other-magic", 1u16, "x"), &mut buf).unwrap();
-        assert!(matches!(decode_envelope::<String>(&buf), Err(CanonicalError::UnknownMagic(_))));
+        assert!(matches!(
+            decode_envelope::<String>(&buf),
+            Err(CanonicalError::UnknownMagic(_))
+        ));
     }
 
     #[test]
     fn rejects_trailing_bytes() {
         let mut bytes = encode_envelope(1, &"x");
         bytes.push(0x00);
-        assert!(matches!(decode_envelope::<String>(&bytes), Err(CanonicalError::TrailingBytes(1))));
+        assert!(matches!(
+            decode_envelope::<String>(&bytes),
+            Err(CanonicalError::TrailingBytes(1))
+        ));
     }
 
     #[test]

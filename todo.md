@@ -36,44 +36,44 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [x] Unit tests + generated schema entries for each ID type
 
 ## Phase 3 — Capability + Lease/Epoch Primitives (spec §5–6)
-- [ ] `Capability` type: explicit, transferable, attenuable, revocable, bound to authority domain, optional epoch/lease binding
-- [ ] `Lease` type (temporal authority)
-- [ ] `Epoch` type (distributed invalidation)
-- [ ] Compose capability + lease + epoch → "valid authority" check
-- [ ] Epoch-transition invalidation semantics (old capability fails post-transition)
-- [ ] Tests covering revocation, attenuation, and epoch-transition invalidation
+- [x] `Capability` type: explicit, transferable, attenuable, revocable, bound to authority domain, optional epoch/lease binding
+- [x] `Lease` type (temporal authority)
+- [x] `Epoch` type (distributed invalidation)
+- [x] Compose capability + lease + epoch → "valid authority" check
+- [x] Epoch-transition invalidation semantics (old capability fails post-transition)
+- [x] Tests covering revocation, attenuation, and epoch-transition invalidation
 
 ## Phase 4 — Intent + Reservation Primitives (spec §7–8)
-- [ ] `Intent` type: computation ref, capabilities, resources, locality, deadline, durability, failure policy
-- [ ] `Reservation` type + state machine: requested → reserved → committed → running → released
-- [ ] Explicit expiry and failure semantics on `Reservation`
-- [ ] Tests for state transitions, expiry, and failure paths
+- [x] `Intent` type: computation ref, capabilities, resources, locality, deadline, durability, failure policy
+- [x] `Reservation` type + state machine: requested → reserved → committed → running → released
+- [x] Explicit expiry and failure semantics on `Reservation`
+- [x] Tests for state transitions, expiry, and failure paths
 
 ## Phase 5 — Computation + Derivation Primitives (spec §9–10)
-- [ ] `Computation` type: operation, inputs, dependencies, environment, platform, toolchain, resource policy, determinism policy
-- [ ] `Derivation` type: input artifacts + `ComputationID` → `DerivationID` → output artifact
-- [ ] Tests for derivation/lineage construction
+- [x] `Computation` type: operation, inputs, dependencies, environment, platform, toolchain, resource policy, determinism policy
+- [x] `Derivation` type: input artifacts + `ComputationID` → `DerivationID` → output artifact
+- [x] Tests for derivation/lineage construction
 
 ## Phase 6 — Execution + Trace Primitives (spec §11–12)
-- [ ] `Execution` type distinguishing "same computation" vs. "same execution"
-- [ ] `Trace` type: stable event identity, causal relationships, deterministic normalization
-- [ ] Replay support and divergence detection for traces
-- [ ] Tests
+- [x] `Execution` type distinguishing "same computation" vs. "same execution"
+- [x] `Trace` type: stable event identity, causal relationships, deterministic normalization
+- [x] Replay support and divergence detection for traces
+- [x] Tests
 
 ## Phase 7 — Evidence, Claim & Counterexample Primitives (spec §13–15, §18, §24)
-- [ ] `Evidence` type with subject/property/environment/toolchain/assumptions/result/identity
-- [ ] Evidence kinds: Proof, ModelCheck, Conformance, Simulation, PropertyTest, FuzzCampaign, DifferentialCheck, Benchmark
-- [ ] `Claim` type: subject, property, scope, assumptions, required obligations, supporting evidence, dependent claims (Assurance Graph)
-- [ ] `Counterexample` type: subject, specification, input/state, trace, environment, observed violation
-- [ ] Mechanism that makes it structurally difficult to overstate a claim beyond its evidence (e.g. per-property status: fully_proven / model_checked / fuzz_tested / unknown)
-- [ ] Tests, incl. an assurance-graph composition example (per §18 example)
+- [x] `Evidence` type with subject/property/environment/toolchain/assumptions/result/identity
+- [x] Evidence kinds: Proof, ModelCheck, Conformance, Simulation, PropertyTest, FuzzCampaign, DifferentialCheck, Benchmark
+- [x] `Claim` type: subject, property, scope, assumptions, required obligations, supporting evidence, dependent claims (Assurance Graph)
+- [x] `Counterexample` type: subject, specification, input/state, trace, environment, observed violation
+- [x] Mechanism that makes it structurally difficult to overstate a claim beyond its evidence (e.g. per-property status: fully_proven / model_checked / fuzz_tested / unknown)
+- [x] Tests, incl. an assurance-graph composition example (per §18 example)
 
 ## Phase 8 — Deterministic World + Reproduction Primitives (spec §16–17)
-- [ ] `ExecutionWorld` type: time model, platform, resources, capabilities, filesystem/object state, network policy, randomness policy, env vars, external dependencies
-- [ ] Mechanism for a computation to declare which parts of the world are semantically relevant
-- [ ] `ReproductionRequest` type
-- [ ] Reproduction result classification: reproduced / reproduced-with-substitution / equivalent-but-non-identical / failed / indeterminate
-- [ ] Tests
+- [x] `ExecutionWorld` type: time model, platform, resources, capabilities, filesystem/object state, network policy, randomness policy, env vars, external dependencies
+- [x] Mechanism for a computation to declare which parts of the world are semantically relevant
+- [x] `ReproductionRequest` type
+- [x] Reproduction result classification: reproduced / reproduced-with-substitution / equivalent-but-non-identical / failed / indeterminate
+- [x] Tests
 
 ## Phase 9 — Trust Boundary Documentation (spec §19)
 - [ ] Document what Fabric trusts (core semantics, declared transport guarantees)

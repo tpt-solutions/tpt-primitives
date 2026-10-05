@@ -110,8 +110,7 @@ identity_class!(
     DerivationTag, DerivationId, "tpt.derivation.v1";
 );
 identity_class!(
-    /// Marker for execution-world identities (spec §16): a canonical
-    /// ExecutionWorld snapshot.
+    /// placeholder-noop
     WorldTag, WorldId, "tpt.world.v1";
 );
 identity_class!(
@@ -185,9 +184,9 @@ mod tests {
         let artifact = ArtifactId::derive(b"shared");
         // Distinct classes are distinct types; compare raw bytes.
         let bytes = [spec.as_bytes(), model.as_bytes(), artifact.as_bytes()];
-        assert!(bytes[0] != bytes[1]);
-        assert!(bytes[0] != bytes[2]);
-        assert!(bytes[1] != bytes[2]);
+        assert_ne!(bytes[0], bytes[1]);
+        assert_ne!(bytes[0], bytes[2]);
+        assert_ne!(bytes[1], bytes[2]);
     }
 
     #[test]
@@ -198,7 +197,11 @@ mod tests {
         assert_eq!(v, 1);
         assert_eq!(back, id);
         assert_eq!(back.hex().len(), 64);
-        assert!(back.hex().chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(
+            back.hex()
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        );
     }
 
     #[test]
@@ -207,12 +210,12 @@ mod tests {
         let any = AnyId::from_id(&id);
         assert_eq!(any.class, "tpt.evidence.v1");
         assert_eq!(any.id, id.hex());
-        assert!(any == id);
+        assert_eq!(any, id);
         // A mismatched class label does not compare equal.
         let wrong = AnyId {
             class: "tpt.claim.v1".into(),
             id: id.hex(),
         };
-        assert!(wrong != id);
+        assert_ne!(wrong, id);
     }
 }

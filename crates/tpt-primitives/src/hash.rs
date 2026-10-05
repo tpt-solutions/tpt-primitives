@@ -22,7 +22,9 @@ pub fn to_hex(bytes: &[u8]) -> String {
 
 /// Decode lowercase (or uppercase) hex into a fixed-size array.
 pub fn from_hex<const N: usize>(hex: &str) -> Result<[u8; N], crate::error::CanonicalError> {
-    let err = || crate::error::CanonicalError::BadHex(format!("expected {N} bytes as {} hex chars", N * 2));
+    let err = || {
+        crate::error::CanonicalError::BadHex(format!("expected {N} bytes as {} hex chars", N * 2))
+    };
     if hex.len() != N * 2 {
         return Err(err());
     }
@@ -71,7 +73,7 @@ mod tests {
 
     #[test]
     fn hex_rejects_bad_input() {
-        assert!(from_hex::<4>(&"zz").is_err());
-        assert!(from_hex::<4>(&"aabbcc").is_err());
+        assert!(from_hex::<4>("zz").is_err());
+        assert!(from_hex::<4>("aabbcc").is_err());
     }
 }

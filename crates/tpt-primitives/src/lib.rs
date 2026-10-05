@@ -28,14 +28,23 @@
 #![warn(missing_docs)]
 
 pub mod canonical;
+pub mod capability;
+pub mod computation;
 pub mod encoding;
+pub mod environment;
 pub mod error;
+pub mod evidence;
+pub mod execution;
 pub mod hash;
 pub mod id;
 pub mod ids;
+pub mod intent;
+pub mod reservation;
+pub mod resources;
 pub mod schema;
 pub mod time;
 pub mod value;
+pub mod world;
 
 pub use canonical::{Canonical, Identified};
 pub use error::CanonicalError;

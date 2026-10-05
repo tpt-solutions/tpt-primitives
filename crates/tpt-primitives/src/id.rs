@@ -161,7 +161,9 @@ fn sanitize(domain: &str) -> String {
 /// Used where a primitive must reference "some canonical object of some
 /// class" — e.g. the subject of an [`crate::evidence::Evidence`] or a
 /// [`crate::evidence::Claim`].
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct AnyId {
     /// The identity class domain, e.g. `"tpt.computation.v1"`.
     pub class: String,
@@ -237,7 +239,7 @@ mod tests {
 
     #[test]
     fn ordering_is_by_bytes() {
-        let mut ids = vec![TestId::derive(b"b"), TestId::derive(b"a")];
+        let mut ids = [TestId::derive(b"b"), TestId::derive(b"a")];
         ids.sort();
         assert_eq!(ids[0], TestId::derive(b"a"));
     }

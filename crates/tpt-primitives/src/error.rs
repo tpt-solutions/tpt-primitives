@@ -34,9 +34,15 @@ impl fmt::Display for CanonicalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Encode(msg) => write!(f, "canonical encode error: {msg}"),
-            Self::NotAnEnvelope => write!(f, "not a canonical envelope (expected a 3-element CBOR array)"),
+            Self::NotAnEnvelope => write!(
+                f,
+                "not a canonical envelope (expected a 3-element CBOR array)"
+            ),
             Self::SchemaVersionMismatch { expected, found } => {
-                write!(f, "schema version mismatch: reader understands v{expected}, envelope is v{found}")
+                write!(
+                    f,
+                    "schema version mismatch: reader understands v{expected}, envelope is v{found}"
+                )
             }
             Self::UnknownMagic(magic) => write!(f, "unknown canonical envelope magic: {magic:?}"),
             Self::Decode(msg) => write!(f, "canonical decode error: {msg}"),
