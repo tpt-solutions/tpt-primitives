@@ -98,3 +98,50 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [x] Finalize `CHANGELOG.md` for 0.1.0
 - [x] Tag `v0.1.0`
 - [x] Decide on crates.io publication — holding private pending Fabric/Repro/Concord integration; revisit at first cross-project integration
+
+---
+
+## Phase 13 — Post-0.1.0 Review Fixes
+- [x] `Capability::transfer` rejects revoked capabilities
+- [x] Lease-bound capabilities cannot move to another holder without a lease for them (`transfer_with_lease`)
+- [x] Delegation-chain check: revoking a parent invalidates descendants (`valid_authority_with_ancestors`)
+- [x] Epoch counter overflow is an error, not a panic/wrap
+- [x] Strict decode: reject non-canonical encodings (`NonCanonical`)
+- [x] `PrimitiveValue::int` normalizes Int/Uint
+- [x] Failing evidence refutes a property instead of being ignored
+- [x] Examples: quickstart, capability_delegation, assurance_graph
+- [ ] Create a `v0.1.0` tag on the release commit (was marked done but did not exist) and tag the next release
+- [ ] Remove or use `CanonicalError::Encode`; make `encode_envelope` fallible or document the panic
+
+## Phase 14 — Semantics Still Open
+- [ ] Evidence assumptions must cap assurance (unsupported assumption => lower level)
+- [ ] Trusted-kernel allowlist for `Proof` evidence; check scope/environment match
+- [ ] Dependency levels must match subject/scope, not only property name
+- [ ] Replace the total `AssuranceLevel` order with a partial order or configurable lattice
+- [ ] Traces: keep event order/multiplicity; causal-order replay worklist; detect reordering
+- [ ] `Execution` identity should exclude mutable outcome/finish state (match Capability/Reservation); validate `finished_at >= started_at`, single `finish`
+- [ ] Memoize `Claim::assess` on shared dependencies (diamond graphs are exponential)
+- [ ] `validate()` on `Canonical`, called from decode, so deserialized values uphold constructor invariants
+- [ ] Intent <-> Capability <-> Reservation coherence check
+
+## Phase 15 — Encoding Decisions (breaking; decide before anything persists)
+- [ ] Adopt RFC 8949 section 4.2 key ordering, or document the exact profile precisely
+- [ ] Encode `Id` as 32-byte bstr instead of 64-char hex text (update CDDL)
+- [ ] Cross-language test vectors (`testvectors/*.json`) and a second-language verifier
+- [ ] Golden-file identity snapshot in CI: bytes change only with a `SCHEMA_VERSION` bump
+- [ ] Check hand-written CDDL against the types, not only the checked-in files
+
+## Phase 16 — Signing and Attestation
+- [ ] `Signed<T>` envelope (Ed25519 + key id) for capabilities, evidence, provenance
+- [ ] Replace free-text `produced_by` with a verifiable signer
+
+## Phase 17 — Tooling and Adoption
+- [ ] `tpt` CLI: `id`, `inspect`, `verify`, `diff`, `explain`
+- [ ] `Claim::to_dot()` assurance-graph visualizer
+- [ ] `prelude` module; `#[derive(Canonical)]` macro to remove boilerplate impls
+- [ ] Feature flags: `schema` (drop schemars), `no_std`
+- [ ] `proptest` round-trip/identity tests and a fuzz target for the decoder
+- [ ] `templates/` (CI build attestation, model-check claim, reproducible-build record)
+- [ ] Per-project 10-minute guides (Fabric, Repro, Concord), glossary, "which type do I need?" chart
+- [ ] CI: cargo-semver-checks, cargo-deny/audit, `cargo doc -D warnings`; dependabot, MSRV, CONTRIBUTING.md
+- [ ] Release automation (release-plz / cargo-release)

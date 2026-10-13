@@ -35,6 +35,12 @@ pub trait Canonical: Serialize + DeserializeOwned + Sized {
     }
 
     /// Decode from canonical bytes, strictly checking the schema version.
+    ///
+    /// The decoded value must re-encode to exactly the input bytes. Inputs
+    /// that decode but are not in canonical form (non-minimal integers,
+    /// uppercase identity hex, indefinite lengths) are rejected with
+    /// [`CanonicalError::NonCanonical`], so one object never has two valid
+    /// byte forms.
     fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, CanonicalError> {
         let (version, payload) = encoding::decode_envelope::<Self>(bytes)?;
         if version != Self::SCHEMA_VERSION {
@@ -42,6 +48,9 @@ pub trait Canonical: Serialize + DeserializeOwned + Sized {
                 expected: Self::SCHEMA_VERSION,
                 found: version,
             });
+        }
+        if payload.canonical_bytes() != bytes {
+            return Err(CanonicalError::NonCanonical);
         }
         Ok(payload)
     }
@@ -114,6 +123,28 @@ mod tests {
                 expected: 1,
                 found: 999
             }
+        );
+    }
+
+    #[test]
+    fn non_canonical_encoding_is_rejected() {
+        // Version 1 written as the non-minimal integer 0x18 0x01.
+        let mut bytes = vec![0x83, 0x6d];
+        bytes.extend(b"tpt-canonical");
+        bytes.extend([0x18, 0x01]);
+        let mut payload = Vec::new();
+        ciborium::ser::into_writer(
+            &Demo {
+                name: "demo".into(),
+                value: 42,
+            },
+            &mut payload,
+        )
+        .unwrap();
+        bytes.extend(payload);
+        assert_eq!(
+            Demo::from_canonical_bytes(&bytes).unwrap_err(),
+            CanonicalError::NonCanonical
         );
     }
 

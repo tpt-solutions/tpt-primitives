@@ -71,7 +71,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "A signed integer.",
+          "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
           "properties": {
             "int": {
               "format": "int64",
@@ -232,7 +232,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A signed integer.",
+              "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
               "properties": {
                 "int": {
                   "format": "int64",
@@ -1550,7 +1550,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A signed integer.",
+              "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
               "properties": {
                 "int": {
                   "format": "int64",
@@ -1746,7 +1746,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A signed integer.",
+              "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
               "properties": {
                 "int": {
                   "format": "int64",
@@ -2334,7 +2334,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A signed integer.",
+              "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
               "properties": {
                 "int": {
                   "format": "int64",
@@ -2451,7 +2451,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A signed integer.",
+              "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
               "properties": {
                 "int": {
                   "format": "int64",
@@ -3241,7 +3241,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A signed integer.",
+              "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
               "properties": {
                 "int": {
                   "format": "int64",
@@ -3648,7 +3648,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A signed integer.",
+              "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
               "properties": {
                 "int": {
                   "format": "int64",
@@ -4032,7 +4032,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A signed integer.",
+              "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
               "properties": {
                 "int": {
                   "format": "int64",
@@ -4427,7 +4427,7 @@
             },
             {
               "additionalProperties": false,
-              "description": "A signed integer.",
+              "description": "A signed integer. Non-negative values share their CBOR encoding\nwith [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer\n[`PrimitiveValue::int`], which normalizes.",
               "properties": {
                 "int": {
                   "format": "int64",

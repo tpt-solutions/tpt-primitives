@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `valid_authority_with_ancestors`: delegation-chain check, so revoking a
+  parent capability invalidates its descendants.
+- `Capability::transfer_with_lease` and `CapabilityError::LeaseBound`.
+- `CanonicalError::NonCanonical` and `PrimitiveValue::int`.
+- Examples: `quickstart`, `capability_delegation`, `assurance_graph`.
+
+### Changed
+
+- **Behavior:** `Canonical::from_canonical_bytes` now rejects bytes that
+  decode but are not the canonical encoding (non-minimal integers,
+  uppercase identity hex, indefinite lengths).
+- **Behavior:** a matching `Fail` evidence result now refutes a property
+  (supported level `Unknown`) instead of being ignored next to a passing run.
+- **API:** `Epoch::transition` returns `Option<Epoch>`; the counter no
+  longer overflows. `EpochBook::transition` errors on exhaustion.
+
+### Fixed
+
+- `Capability::transfer` succeeded on a revoked capability.
+- Transferring or attenuating a lease-bound capability to another holder
+  produced a child that could never pass `valid_authority`; it now needs a
+  lease for the new holder.
+
 ## [0.1.0] - 2026-10-05
 
 Initial release of the shared-primitives library.

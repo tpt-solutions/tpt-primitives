@@ -94,10 +94,27 @@ impl Execution {
         }
     }
 
-    /// Record the end of the execution.
-    pub fn finish(&mut self, at: LogicalTime, outcome: ExecutionOutcome) {
+    /// Record the end of the execution. An execution finishes once, and not
+    /// before it started.
+    pub fn finish(
+        &mut self,
+        at: LogicalTime,
+        outcome: ExecutionOutcome,
+    ) -> Result<(), CanonicalError> {
+        if self.finished_at.is_some() {
+            return Err(CanonicalError::InvalidContent(
+                "execution already finished".into(),
+            ));
+        }
+        if at.is_before(self.started_at) {
+            return Err(CanonicalError::InvalidContent(format!(
+                "execution finished at {at}, before it started at {}",
+                self.started_at
+            )));
+        }
         self.finished_at = Some(at);
         self.outcome = Some(outcome);
+        Ok(())
     }
 
     /// Attach a trace reference.
@@ -290,6 +307,19 @@ mod tests {
     }
 
     #[test]
+    fn finish_rejects_double_finish_and_time_travel() {
+        let failed = || ExecutionOutcome::Failed {
+            reason: "boom".into(),
+        };
+        let mut e = Execution::begin(computation(), world(), LogicalTime::new(10));
+        assert!(e.finish(LogicalTime::new(9), failed()).is_err());
+        assert_eq!(e.finished_at, None, "a rejected finish changes nothing");
+        e.finish(LogicalTime::new(10), failed()).unwrap();
+        assert!(e.finish(LogicalTime::new(11), failed()).is_err());
+        assert_eq!(e.finished_at, Some(LogicalTime::new(10)));
+    }
+
+    #[test]
     fn execution_records_distinction_explicitly() {
         let mut e = Execution::begin(computation(), world(), LogicalTime::new(1));
         e.finish(
@@ -297,7 +327,8 @@ mod tests {
             ExecutionOutcome::Succeeded {
                 artifacts: BTreeSet::from([crate::computation::artifact_of_content(b"out")]),
             },
-        );
+        )
+        .unwrap();
         assert!(matches!(
             e.outcome,
             Some(ExecutionOutcome::Succeeded { .. })

@@ -48,6 +48,14 @@ The fifteen shared identity classes (spec §3) are exposed as
 `EvidenceId`, `ClaimId`, `CapabilityId`, `EpochId`, `CounterexampleId`
 and `ProvenanceId`, all instances of the generic `Id<T>` newtype.
 
+## Try it
+
+```text
+cargo run -p tpt-primitives --example quickstart             # computation -> artifact -> claim
+cargo run -p tpt-primitives --example capability_delegation  # attenuate, revoke, lease, epoch
+cargo run -p tpt-primitives --example assurance_graph        # dependencies and refutation
+```
+
 ## Layout
 
 - `crates/tpt-primitives` — the core library.

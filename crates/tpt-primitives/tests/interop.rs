@@ -177,7 +177,8 @@ fn cross_project_chain_composes() {
         ExecutionOutcome::Succeeded {
             artifacts: BTreeSet::new(), // filled by Repro below
         },
-    );
+    )
+    .unwrap();
     let execution = execution.with_trace(trace_id);
     assert!(trace.causal_parents_resolved().is_ok());
 

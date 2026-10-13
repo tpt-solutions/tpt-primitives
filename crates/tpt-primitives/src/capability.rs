@@ -195,12 +195,14 @@ impl Epoch {
         Self { domain, counter: 0 }
     }
 
-    /// The next epoch after a transition.
-    pub fn transition(&self) -> Self {
-        Self {
+    /// The next epoch after a transition, or `None` if the counter is
+    /// exhausted. Wrapping would revive capabilities bound to an old epoch,
+    /// so exhaustion is an error rather than an overflow.
+    pub fn transition(&self) -> Option<Self> {
+        Some(Self {
             domain: self.domain.clone(),
-            counter: self.counter + 1,
-        }
+            counter: self.counter.checked_add(1)?,
+        })
     }
 }
 
@@ -228,7 +230,11 @@ impl EpochBook {
     /// [`valid_authority`] (spec §6).
     pub fn transition(&mut self, domain: &AuthorityDomain) -> Result<Epoch, CanonicalError> {
         let next = match self.current(domain) {
-            Some(current) => current.transition(),
+            Some(current) => current.transition().ok_or_else(|| {
+                CanonicalError::InvalidContent(format!(
+                    "epoch counter of domain {domain} is exhausted"
+                ))
+            })?,
             None => Epoch::initial(domain.clone()),
         };
         self.set_current(next.clone());
@@ -368,18 +374,55 @@ impl Capability {
         if !self.grant.transferable {
             return Err(CapabilityError::NotTransferable(self.id()));
         }
+        self.require_no_foreign_lease(new_holder)?;
         self.attenuate_inner(new_holder, keep)
     }
 
     /// Transfer verbatim to a new holder: requires `transferable`.
+    ///
+    /// Fails if the capability is bound to a lease, because a lease is
+    /// issued to one holder; use [`Capability::transfer_with_lease`] to
+    /// supply a lease for the new holder.
     pub fn transfer(&self, new_holder: &Principal) -> Result<Self, CapabilityError> {
+        self.require_no_foreign_lease(new_holder)?;
+        self.transfer_inner(new_holder, self.grant.lease)
+    }
+
+    /// Transfer to a new holder, rebinding the child to `lease`, which must
+    /// have been issued to `new_holder` for the same domain. Only the
+    /// lease's identity is bound here; [`valid_authority`] checks it.
+    pub fn transfer_with_lease(
+        &self,
+        new_holder: &Principal,
+        lease: LeaseId,
+    ) -> Result<Self, CapabilityError> {
+        self.transfer_inner(new_holder, Some(lease))
+    }
+
+    fn transfer_inner(
+        &self,
+        new_holder: &Principal,
+        lease: Option<LeaseId>,
+    ) -> Result<Self, CapabilityError> {
         if !self.grant.transferable {
             return Err(CapabilityError::NotTransferable(self.id()));
+        }
+        if self.status != CapabilityStatus::Active {
+            return Err(CapabilityError::NotActive(self.id()));
         }
         if *new_holder == self.grant.holder {
             return Err(CapabilityError::SameHolder);
         }
-        Ok(self.derive_child(new_holder.clone(), self.grant.grants.clone()))
+        let mut child = self.derive_child(new_holder.clone(), self.grant.grants.clone());
+        child.grant.lease = lease;
+        Ok(child)
+    }
+
+    fn require_no_foreign_lease(&self, new_holder: &Principal) -> Result<(), CapabilityError> {
+        if self.grant.lease.is_some() && *new_holder != self.grant.holder {
+            return Err(CapabilityError::LeaseBound(self.id()));
+        }
+        Ok(())
     }
 
     fn attenuate_inner(
@@ -430,6 +473,9 @@ pub enum CapabilityError {
     EmptyAttenuation(CapabilityId),
     /// Transfer to the current holder.
     SameHolder,
+    /// The capability is bound to a lease issued to its current holder, so
+    /// it cannot move to another holder without a lease for that holder.
+    LeaseBound(CapabilityId),
 }
 
 impl fmt::Display for CapabilityError {
@@ -441,6 +487,10 @@ impl fmt::Display for CapabilityError {
                 write!(f, "attenuation of capability {id} would remove all grants")
             }
             Self::SameHolder => write!(f, "cannot transfer a capability to its current holder"),
+            Self::LeaseBound(id) => write!(
+                f,
+                "capability {id} is bound to its holder's lease; transfer it with a lease for the new holder"
+            ),
         }
     }
 }
@@ -480,6 +530,10 @@ pub enum AuthorityError {
         /// Expiry.
         expires_at: LogicalTime,
     },
+    /// An ancestor in the delegation chain has been revoked.
+    AncestorRevoked(CapabilityId),
+    /// The supplied ancestors do not form the capability's parent chain.
+    BrokenChain(CapabilityId),
     /// The capability requires an epoch binding but none was supplied.
     EpochRequired(CapabilityId),
     /// The current epoch of the bound domain does not match the
@@ -519,6 +573,11 @@ impl fmt::Display for AuthorityError {
             Self::LeaseExpired { at, expires_at } => {
                 write!(f, "lease expired at {expires_at}; now is {at}")
             }
+            Self::AncestorRevoked(id) => write!(f, "ancestor capability {id} is revoked"),
+            Self::BrokenChain(id) => write!(
+                f,
+                "supplied ancestors do not form the delegation chain of capability {id}"
+            ),
             Self::EpochRequired(id) => {
                 write!(f, "capability {id} requires an epoch; none supplied")
             }
@@ -603,6 +662,36 @@ pub fn valid_authority(
     }
 
     Ok(())
+}
+
+/// [`valid_authority`] plus delegation-chain checks: every ancestor must
+/// still be active, so revoking a parent revokes everything derived from it.
+///
+/// `ancestors` lists the capability's parent chain nearest-first (parent,
+/// grandparent, ...) up to the root. A chain that does not match the
+/// `parent` links is rejected, so a caller cannot skip a revoked link.
+pub fn valid_authority_with_ancestors(
+    capability: &Capability,
+    ancestors: &[&Capability],
+    lease: Option<&Lease>,
+    current: Option<&Epoch>,
+    at: LogicalTime,
+) -> Result<(), AuthorityError> {
+    let mut expected = capability.grant.parent;
+    for ancestor in ancestors {
+        let ancestor_id = ancestor.id();
+        if expected != Some(ancestor_id) {
+            return Err(AuthorityError::BrokenChain(capability.id()));
+        }
+        if ancestor.status != CapabilityStatus::Active {
+            return Err(AuthorityError::AncestorRevoked(ancestor_id));
+        }
+        expected = ancestor.grant.parent;
+    }
+    if expected.is_some() {
+        return Err(AuthorityError::BrokenChain(capability.id()));
+    }
+    valid_authority(capability, lease, current, at)
 }
 
 #[cfg(test)]
@@ -901,5 +990,73 @@ mod tests {
         assert!(Capability::mint(domain(), alice(), Vec::<Grant>::new(), false).is_err());
         assert!(AuthorityDomain::new("").is_err());
         assert!(Principal::new("").is_err());
+    }
+
+    #[test]
+    fn revoked_capability_cannot_be_transferred() {
+        let mut cap = root_capability();
+        cap.revoke(LogicalTime::new(1));
+        assert_eq!(
+            cap.transfer(&bob()).unwrap_err(),
+            CapabilityError::NotActive(cap.id())
+        );
+    }
+
+    #[test]
+    fn lease_bound_capability_needs_a_lease_for_the_new_holder() {
+        let lease_a =
+            Lease::new(domain(), alice(), LogicalTime::ZERO, LogicalTime::new(10)).unwrap();
+        let cap = root_capability().bound_to_lease(lease_a.identity());
+        assert_eq!(
+            cap.transfer(&bob()).unwrap_err(),
+            CapabilityError::LeaseBound(cap.id())
+        );
+        assert!(matches!(
+            cap.attenuate_for(&bob(), |_| true),
+            Err(CapabilityError::LeaseBound(_))
+        ));
+
+        let lease_b = Lease::new(domain(), bob(), LogicalTime::ZERO, LogicalTime::new(10)).unwrap();
+        let child = cap.transfer_with_lease(&bob(), lease_b.identity()).unwrap();
+        let epoch = Epoch::initial(domain());
+        valid_authority(&child, Some(&lease_b), Some(&epoch), LogicalTime::new(1)).unwrap();
+    }
+
+    #[test]
+    fn revoking_a_parent_invalidates_descendants() {
+        let epoch = Epoch::initial(domain());
+        let root = root_capability();
+        let child = root.transfer(&bob()).unwrap();
+        let at = LogicalTime::new(1);
+        valid_authority_with_ancestors(&child, &[&root], None, Some(&epoch), at).unwrap();
+
+        let mut revoked = root.clone();
+        revoked.revoke(at);
+        assert_eq!(
+            valid_authority_with_ancestors(&child, &[&revoked], None, Some(&epoch), at)
+                .unwrap_err(),
+            AuthorityError::AncestorRevoked(root.id())
+        );
+        // Omitting the chain, or supplying the wrong one, is rejected.
+        assert!(matches!(
+            valid_authority_with_ancestors(&child, &[], None, Some(&epoch), at),
+            Err(AuthorityError::BrokenChain(_))
+        ));
+        assert!(matches!(
+            valid_authority_with_ancestors(&child, &[&child], None, Some(&epoch), at),
+            Err(AuthorityError::BrokenChain(_))
+        ));
+    }
+
+    #[test]
+    fn exhausted_epoch_counter_is_an_error_not_a_wrap() {
+        let last = Epoch {
+            domain: domain(),
+            counter: u64::MAX,
+        };
+        assert!(last.transition().is_none());
+        let mut book = EpochBook::default();
+        book.set_current(last);
+        assert!(book.transition(&domain()).is_err());
     }
 }

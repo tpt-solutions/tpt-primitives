@@ -25,12 +25,23 @@ pub enum PrimitiveValue {
     Bytes(Vec<u8>),
     /// An unsigned integer.
     Uint(u64),
-    /// A signed integer.
+    /// A signed integer. Non-negative values share their CBOR encoding
+    /// with [`PrimitiveValue::Uint`] and decode back as `Uint`; prefer
+    /// [`PrimitiveValue::int`], which normalizes.
     Int(i64),
     /// A boolean.
     Bool(bool),
     /// Absent value.
     Null,
+}
+
+impl PrimitiveValue {
+    /// A signed integer in normal form: non-negative values become
+    /// [`PrimitiveValue::Uint`], matching what decoding produces, so equal
+    /// canonical bytes always mean equal values.
+    pub fn int(value: i64) -> Self {
+        u64::try_from(value).map_or(Self::Int(value), Self::Uint)
+    }
 }
 
 impl Serialize for PrimitiveValue {
@@ -114,6 +125,17 @@ mod tests {
         map2.insert("zebra".into(), PrimitiveValue::Uint(1));
         let b = crate::encoding::encode_envelope(1, &map2);
         assert_eq!(a, b, "insertion order must not affect canonical bytes");
+    }
+
+    #[test]
+    fn int_constructor_normalizes_to_the_decoded_form() {
+        for v in [-3i64, 0, 5, i64::MAX] {
+            let value = PrimitiveValue::int(v);
+            let bytes = crate::encoding::encode_envelope(1, &value);
+            let (_, back): (u16, PrimitiveValue) =
+                crate::encoding::decode_envelope(&bytes).unwrap();
+            assert_eq!(back, value);
+        }
     }
 
     #[test]

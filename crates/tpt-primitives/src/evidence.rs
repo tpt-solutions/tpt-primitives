@@ -398,7 +398,8 @@ impl Claim {
 
     /// The best assurance level the attached evidence actually supports
     /// for `property`: only `Pass` results with a matching subject and
-    /// property count; the strongest kind wins (spec §24).
+    /// property count; the strongest kind wins (spec §24). Any matching
+    /// `Fail` result refutes the property and yields `Unknown`.
     pub fn supported_level<R: AssuranceResolver>(
         &self,
         property: &str,
@@ -412,8 +413,12 @@ impl Claim {
             if evidence.subject != self.subject || evidence.property != property {
                 continue;
             }
-            if evidence.result != EvidenceResult::Pass {
-                continue;
+            match evidence.result {
+                EvidenceResult::Pass => {}
+                // A matching failure refutes the property: no passing
+                // evidence may be read as support alongside it.
+                EvidenceResult::Fail => return AssuranceLevel::Unknown,
+                EvidenceResult::Inconclusive => continue,
             }
             let level = AssuranceLevel::for_kind(&evidence.kind);
             if level > best {
@@ -436,20 +441,30 @@ impl Claim {
         resolver: &R,
     ) -> Result<ClaimAssessment, AssessmentError> {
         let mut stack = BTreeSet::new();
-        self.assess_inner(resolver, &mut stack)
+        let mut done = BTreeMap::new();
+        self.assess_inner(resolver, &mut stack, &mut done)
     }
 
     fn assess_inner<R: AssuranceResolver>(
         &self,
         resolver: &R,
         stack: &mut BTreeSet<ClaimId>,
+        done: &mut BTreeMap<ClaimId, ClaimAssessment>,
     ) -> Result<ClaimAssessment, AssessmentError> {
         let id = self.identity();
+        // A claim shared by several dependents is assessed once, so
+        // diamond-shaped graphs stay linear in the number of claims.
+        if let Some(cached) = done.get(&id) {
+            return Ok(cached.clone());
+        }
         if !stack.insert(id) {
             return Err(AssessmentError::DependencyCycle(id));
         }
-        let result = self.assess_no_cycle(resolver, stack);
+        let result = self.assess_no_cycle(resolver, stack, done);
         stack.remove(&id);
+        if let Ok(assessment) = &result {
+            done.insert(id, assessment.clone());
+        }
         result
     }
 
@@ -457,6 +472,7 @@ impl Claim {
         &self,
         resolver: &R,
         stack: &mut BTreeSet<ClaimId>,
+        done: &mut BTreeMap<ClaimId, ClaimAssessment>,
     ) -> Result<ClaimAssessment, AssessmentError> {
         let id = self.identity();
         // Dependencies assess first (spec §18); their supported levels
@@ -466,7 +482,7 @@ impl Claim {
             let dep = resolver
                 .claim(*dep_id)
                 .ok_or(AssessmentError::MissingClaim(*dep_id))?;
-            let dep_assessment = dep.assess_inner(resolver, stack)?;
+            let dep_assessment = dep.assess_inner(resolver, stack, done)?;
             for (property, level) in dep_assessment.supported {
                 let entry = dependency_levels
                     .entry(property)
@@ -669,7 +685,7 @@ mod tests {
     }
 
     #[test]
-    fn supported_level_ignores_failures_and_foreign_subjects() {
+    fn supported_level_ignores_unrelated_failures_and_foreign_subjects() {
         let subject = subject_of_computation();
         let other_subject = AnyId::from_id(&Id::<ComputationTag>::derive(b"other"));
         let mut store = AssuranceStore::new();
@@ -682,10 +698,11 @@ mod tests {
                 executions: 10,
             },
         ));
-        // A failing proof must not raise the level.
+        // A failing proof of an unrelated property neither raises nor
+        // refutes this one.
         let mut failed_proof = evidence_for(
             &subject,
-            "no_data_loss",
+            "other_property",
             EvidenceKind::Proof { kernel: "k".into() },
         );
         failed_proof.result = EvidenceResult::Fail;
@@ -714,6 +731,43 @@ mod tests {
             assessment.supported["no_data_loss"],
             AssuranceLevel::FuzzTested
         );
+    }
+
+    #[test]
+    fn matching_failure_refutes_passing_evidence() {
+        let subject = subject_of_computation();
+        let mut store = AssuranceStore::new();
+        let proof = evidence_for(
+            &subject,
+            "no_data_loss",
+            EvidenceKind::Proof { kernel: "k".into() },
+        );
+        let failure = fail_evidence_for(&subject, "no_data_loss");
+        store.put_evidence(proof.clone());
+        store.put_evidence(failure.clone());
+
+        let mut claim = Claim {
+            subject: subject.clone(),
+            property: "no_data_loss".into(),
+            scope: "recovery path".into(),
+            assumptions: BTreeSet::new(),
+            required_obligations: BTreeSet::new(),
+            evidence: BTreeSet::from([proof.identity(), failure.identity()]),
+            depends_on: BTreeSet::new(),
+        };
+        assert_eq!(
+            claim.assess(&store).unwrap().supported["no_data_loss"],
+            AssuranceLevel::Unknown,
+            "a proof must not read as fully_proven next to a failing run"
+        );
+        claim.required_obligations.insert(Obligation::requires(
+            "no_data_loss",
+            AssuranceLevel::FullyProven,
+        ));
+        assert!(matches!(
+            claim.assess(&store),
+            Err(AssessmentError::Overstated { .. })
+        ));
     }
 
     #[test]

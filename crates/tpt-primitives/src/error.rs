@@ -24,6 +24,8 @@ pub enum CanonicalError {
     /// Canonical bytes must be consumed exactly; extra trailing bytes are
     /// rejected rather than ignored.
     TrailingBytes(usize),
+    /// The bytes decode, but are not the canonical encoding of the value.
+    NonCanonical,
     /// A value violates a content invariant (e.g. empty authority domain).
     InvalidContent(String),
     /// Hex decoding of an identity string failed.
@@ -47,6 +49,7 @@ impl fmt::Display for CanonicalError {
             Self::UnknownMagic(magic) => write!(f, "unknown canonical envelope magic: {magic:?}"),
             Self::Decode(msg) => write!(f, "canonical decode error: {msg}"),
             Self::TrailingBytes(n) => write!(f, "{n} trailing byte(s) after canonical payload"),
+            Self::NonCanonical => write!(f, "bytes decode but are not in canonical form"),
             Self::InvalidContent(msg) => write!(f, "invalid canonical content: {msg}"),
             Self::BadHex(msg) => write!(f, "bad identity hex: {msg}"),
         }
