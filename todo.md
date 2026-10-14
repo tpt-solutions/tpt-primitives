@@ -115,7 +115,8 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 
 ## Phase 14 — Semantics Still Open
 - [x] Undischarged assumptions reported on every assessment; opt-in strict policy (no invented numeric cap)
-- [x] Trusted-kernel allowlist for `Proof` evidence (`AssessmentPolicy`); scope/environment matching still open
+- [x] Trusted-kernel allowlist for `Proof` evidence (`AssessmentPolicy`)
+- [x] Scope: evidence matched on platform, toolchain and environment (ADR 0005); scope/environment matching still open
 - [x] Decided: dependencies legitimately cover other subjects (a database claim depends on a WAL claim); matching stays by property name, documented
 - [x] Decided: keep the total order, documented as a strength ranking; express other needs as per-property obligations
 - [x] Traces: multiplicity kept; deterministic causal order; causal replay worklist
@@ -130,6 +131,7 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [x] Encode `Id` as 32-byte bstr instead of 64-char hex text (update CDDL)
 - [x] Cross-language test vectors (`testvectors/v1.json`) and a second-language verifier (`verify.py`)
 - [x] Golden-file identity snapshot in CI: bytes change only with a `SCHEMA_VERSION` bump
+- [x] Absent optionals omitted (`?` in CDDL now matches the bytes); regression test forbids null-encoded optionals (ADR 0005)
 - [ ] Check hand-written CDDL against the types, not only the checked-in files
 
 ## Phase 16 — Signing and Attestation
@@ -141,12 +143,13 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [x] `tpt` CLI: `inspect`, `id`, `diff` (`verify`/`explain` still open)
 - [x] `Claim::to_dot()` assurance-graph visualizer
 - [x] `prelude` module
-- [ ] `#[derive(Canonical)]` macro to remove boilerplate impls
+- [x] `#[derive(Canonical)]` (`tpt-derive`): version, identity class and validate hook; existing hand impls left as they are
 - [ ] Feature flags: `schema` (drop schemars), `no_std`
 - [x] `proptest` round-trip/identity tests incl. decoder robustness
-- [ ] `cargo-fuzz` target for the decoder
+- [x] `cargo-fuzz` target for the decoders (`fuzz/`); CI smoke run. Not run on the Windows dev box: libFuzzer needs nightly and a sanitizer toolchain
 - [ ] `templates/` (CI build attestation, model-check claim, reproducible-build record)
 - [x] Getting-started guide with per-project entry points, glossary, "which type do I need?" table
 - [x] CI: `cargo doc -D warnings`, examples, vector verification; dependabot; CONTRIBUTING.md
-- [ ] CI: cargo-semver-checks, cargo-deny/audit; MSRV
+- [x] CI: cargo-deny (licenses, advisories, bans, sources) and MSRV 1.88
+- [ ] cargo-semver-checks: deferred until the first release, since there is no published baseline to compare against
 - [ ] Release automation (release-plz / cargo-release)

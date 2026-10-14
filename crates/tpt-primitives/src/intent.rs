@@ -92,6 +92,7 @@ pub enum FailurePolicy {
 pub struct Intent {
     /// The Repro computation this intent wants to execute (§7: "An Intent
     /// can reference a Repro `ComputationID`).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub computation: Option<ComputationId>,
     /// Capabilities the execution will exercise (spec §5 authority).
     pub capabilities: BTreeSet<CapabilityId>,
@@ -100,6 +101,7 @@ pub struct Intent {
     /// Where the execution should run.
     pub locality: Locality,
     /// Logical tick after which the intent must no longer start.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub deadline: Option<LogicalTime>,
     /// Output durability requirement.
     pub durability: Durability,
@@ -108,7 +110,7 @@ pub struct Intent {
 }
 
 impl Canonical for Intent {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for Intent {

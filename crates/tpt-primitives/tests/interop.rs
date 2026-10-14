@@ -28,6 +28,7 @@ use tpt_primitives::computation::{
 use tpt_primitives::environment::{EnvironmentSpec, PlatformSpec, ToolchainSpec};
 use tpt_primitives::evidence::{
     AssuranceLevel, AssuranceStore, Claim, Evidence, EvidenceKind, EvidenceResult, Obligation,
+    ScopeRequirement,
 };
 use tpt_primitives::execution::{Execution, ExecutionOutcome, Trace, TraceComparison, TraceEvent};
 use tpt_primitives::id::AnyId;
@@ -233,6 +234,7 @@ fn cross_project_chain_composes() {
     // ------------------------------------------------------------------
     let subject = AnyId::from_id(&output);
     let evidence = Evidence {
+        platform: None,
         subject: subject.clone(),
         property: "bit_identical_reproduction".into(),
         environment: EnvironmentSpec::new(),
@@ -246,6 +248,7 @@ fn cross_project_chain_composes() {
     };
 
     let claim = Claim {
+        requirement: ScopeRequirement::default(),
         subject: subject.clone(),
         property: "artifact_is_reproducible".into(),
         scope: "this computation, linux/x86_64, rust 1.97.1".into(),

@@ -70,3 +70,30 @@ jobs:
           python-version: "3.12"
       - run: pip install cbor2 cryptography
       - run: python testvectors/verify.py
+
+  msrv:
+    name: minimum supported Rust (1.88)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88
+      - run: cargo check --workspace --all-targets
+
+  deny:
+    name: dependency policy (cargo-deny)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+
+  fuzz:
+    name: fuzz smoke (canonical decoders)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install cargo-fuzz --locked
+      - run: cargo +nightly fuzz run canonical_decode -- -max_total_time=60
+

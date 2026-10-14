@@ -9,6 +9,7 @@ use tpt_primitives::Identified;
 use tpt_primitives::environment::{EnvironmentSpec, ToolchainSpec};
 use tpt_primitives::evidence::{
     AssuranceLevel, AssuranceStore, Claim, Evidence, EvidenceKind, EvidenceResult, Obligation,
+    ScopeRequirement,
 };
 use tpt_primitives::id::{AnyId, Id};
 use tpt_primitives::ids::ComputationTag;
@@ -21,6 +22,7 @@ fn evidence(
     result: EvidenceResult,
 ) -> Evidence {
     Evidence {
+        platform: None,
         subject: subject.clone(),
         property: property.into(),
         environment: EnvironmentSpec::new(),
@@ -47,6 +49,7 @@ fn main() {
         EvidenceResult::Pass,
     );
     let wal_claim = Claim {
+        requirement: ScopeRequirement::default(),
         subject: wal.clone(),
         property: "replay_correct".into(),
         scope: "single node".into(),
@@ -60,6 +63,7 @@ fn main() {
 
     // The database claim requires that property, discharged by the dependency.
     let db_claim = Claim {
+        requirement: ScopeRequirement::default(),
         subject: db,
         property: "durable".into(),
         scope: "single node".into(),
@@ -94,6 +98,7 @@ fn main() {
     store.put_claim(refuted.clone());
 
     let db_claim = Claim {
+        requirement: ScopeRequirement::default(),
         depends_on: BTreeSet::from([refuted.id()]),
         ..db_claim
     };

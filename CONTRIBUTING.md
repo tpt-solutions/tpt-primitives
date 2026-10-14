@@ -31,8 +31,10 @@ The vectors test fails on any unannounced encoding change; that is its job.
 
 ## Adding a canonical type
 
-Implement `Canonical` and `Identified` (with a new identity class in
-`ids.rs`), add a `SchemaEntry` in `schema.rs`, keep fields deterministic
+Derive `Canonical` with `#[derive(serde::Serialize, serde::Deserialize, tpt_derive::Canonical)]`
+and `#[canonical(version = 2, id = YourTag, validate = check)]` (omit `id` for
+content that is not an identity). Add a new identity class in `ids.rs`, add a
+`SchemaEntry` in `schema.rs`, keep fields deterministic
 (`BTreeSet`/`BTreeMap`, no floats, no wall-clock time), validate in
 constructors, and add a golden vector if the type is identity-bearing.
 

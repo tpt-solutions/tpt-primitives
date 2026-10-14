@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tpt-derive` crate: `#[derive(Canonical)]` with `version`, `id` and `validate`.
+- `fuzz/` cargo-fuzz target for the canonical decoders.
+- cargo-deny policy (`deny.toml`), `rust-version = "1.88"`, and CI jobs for
+  MSRV, dependency policy and a fuzz smoke run.
+
+- `ScopeRequirement` (platform, toolchain and required environment variables)
+  and `Claim::requirement`; `Evidence::platform`.
+
 - `tpt-sign` crate: `Signer`, `Signed<T>`, `PublicKey`, `Signature`
   (Ed25519 over a domain-separated identity; decoding verifies). ADR 0004,
   `testvectors/signed-v1.json`, example `signed_evidence`.
@@ -30,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Examples: `quickstart`, `capability_delegation`, `assurance_graph`.
 
 ### Changed
+
+- **Breaking encoding (ADR 0005):** every canonical type is schema version 2.
+  Absent optional fields are omitted from canonical CBOR instead of encoded as
+  `null`, matching the CDDL `?` notation.
+- **Breaking (ADR 0005):** `Evidence` has `platform: Option<PlatformSpec>`;
+  `Claim` has `requirement: ScopeRequirement`. Evidence outside a claim's
+  requirement neither supports nor refutes that claim.
 
 - **Behavior:** `Execution::identity()` now derives from `ExecutionSpec`
   (computation, world, attempt, start) only; outcome, finish time and trace

@@ -1,0 +1,24 @@
+[package]
+name = "tpt-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+tpt-primitives = { path = "../crates/tpt-primitives" }
+tpt-sign = { path = "../crates/tpt-sign" }
+
+[[bin]]
+name = "canonical_decode"
+path = "fuzz_targets/canonical_decode.rs"
+test = false
+doc = false
+bench = false
+
+# Separate workspace: fuzzing needs nightly and libFuzzer, which the normal
+# build must never require.
+[workspace]

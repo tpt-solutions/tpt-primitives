@@ -128,15 +128,18 @@ assurance-level = ("unknown" / "benchmarked" / "fuzz_tested" / "differentially_t
                  / "property_tested" / "simulated" / "conformance_tested"
                  / "model_checked" / "fully_proven")
 obligation = { property: text, min_level: assurance-level }
+scope-requirement = {
+  ?platform: platform-spec, ?toolchain: toolchain-spec, environment: primitive-map,
+}
 evidence = tpt-envelope<{
   subject: {class: text, id: text}, property: text,
-  environment: environment-spec, toolchain: toolchain-spec,
+  environment: environment-spec, ?platform: platform-spec, toolchain: toolchain-spec,
   assumptions: [* assumption], kind: evidence-kind,
   result: evidence-result, produced_at: uint,
 }>
 any-id = { class: text, id: text }
 claim = tpt-envelope<{
-  subject: any-id, property: text, scope: text,
+  subject: any-id, property: text, scope: text, requirement: scope-requirement,
   assumptions: [* assumption],
   required_obligations: [* obligation],
   evidence: [* tpt-id], depends_on: [* tpt-id],

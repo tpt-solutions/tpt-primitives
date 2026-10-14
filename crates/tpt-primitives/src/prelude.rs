@@ -18,7 +18,7 @@ pub use crate::environment::{EnvironmentSpec, PlatformSpec, ToolchainSpec};
 pub use crate::error::CanonicalError;
 pub use crate::evidence::{
     AssuranceLevel, AssuranceStore, Claim, Counterexample, Evidence, EvidenceKind, EvidenceResult,
-    Obligation,
+    Obligation, ScopeRequirement,
 };
 pub use crate::execution::{Execution, ExecutionOutcome, Trace, TraceEvent};
 pub use crate::id::{AnyId, Id};

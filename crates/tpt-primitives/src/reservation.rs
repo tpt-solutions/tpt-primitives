@@ -75,7 +75,7 @@ pub struct ReservationSpec {
 }
 
 impl Canonical for ReservationSpec {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 
     fn validate(&self) -> Result<(), CanonicalError> {
         if self.expires_at.ticks() == 0 {
@@ -134,6 +134,7 @@ pub struct Reservation {
     /// Recorded transitions, in order.
     pub history: Vec<StateTransition>,
     /// Reason, if the reservation reached [`ReservationState::Failed`].
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub failure_reason: Option<String>,
 }
 
@@ -179,7 +180,7 @@ impl std::fmt::Display for ReservationError {
 impl std::error::Error for ReservationError {}
 
 impl Canonical for Reservation {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Reservation {

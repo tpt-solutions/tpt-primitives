@@ -153,7 +153,7 @@ pub struct Lease {
 }
 
 impl Canonical for Lease {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 
     fn validate(&self) -> Result<(), CanonicalError> {
         Self::new(
@@ -210,7 +210,7 @@ pub struct Epoch {
 }
 
 impl Canonical for Epoch {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for Epoch {
@@ -299,15 +299,18 @@ pub struct CapabilityGrant {
     /// another holder.
     pub transferable: bool,
     /// The capability this one was attenuated/transferred from.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent: Option<CapabilityId>,
     /// Optional lease binding (temporal authority, spec §6).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lease: Option<LeaseId>,
     /// Optional epoch binding (distributed invalidation, spec §6).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub epoch_binding: Option<EpochRequirement>,
 }
 
 impl Canonical for CapabilityGrant {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 
     fn validate(&self) -> Result<(), CanonicalError> {
         if self.grants.is_empty() {
@@ -1055,6 +1058,28 @@ mod tests {
 
         let empty_label = crate::encoding::encode_envelope(1, &"");
         assert!(crate::encoding::decode_envelope::<Principal>(&empty_label).is_err());
+    }
+
+    #[test]
+    fn absent_optionals_are_omitted_not_null() {
+        // The CDDL marks optional fields with `?` (absent). Encoding None as
+        // CBOR null would make the bytes disagree with the spec.
+        let grant = root_capability().grant;
+        assert!(grant.parent.is_none() && grant.lease.is_none());
+        let (_, value): (u16, ciborium::value::Value) =
+            crate::encoding::decode_envelope(&grant.canonical_bytes()).unwrap();
+        let ciborium::value::Value::Map(entries) = value else {
+            panic!("grant payload is a map")
+        };
+        let keys: Vec<&str> = entries.iter().filter_map(|(k, _)| k.as_text()).collect();
+        assert!(!keys.contains(&"parent"));
+        assert!(!keys.contains(&"lease"));
+        assert!(
+            !entries
+                .iter()
+                .any(|(_, v)| matches!(v, ciborium::value::Value::Null)),
+            "no optional may be encoded as null"
+        );
     }
 
     #[test]

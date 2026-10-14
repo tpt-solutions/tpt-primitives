@@ -19,7 +19,7 @@ use tpt_primitives::capability::{AuthorityDomain, Capability, Epoch, Grant, Leas
 use tpt_primitives::computation::{Computation, Operation, artifact_of_content};
 use tpt_primitives::environment::{EnvironmentSpec, PlatformSpec, ToolchainSpec};
 use tpt_primitives::evidence::{
-    AssuranceLevel, Claim, Evidence, EvidenceKind, EvidenceResult, Obligation,
+    AssuranceLevel, Claim, Evidence, EvidenceKind, EvidenceResult, Obligation, ScopeRequirement,
 };
 use tpt_primitives::hash::to_hex;
 use tpt_primitives::id::{AnyId, IdClass};
@@ -73,6 +73,7 @@ fn vectors() -> Value {
 
     let subject = AnyId::from_id(&artifact_of_content(b"binary-v1"));
     let evidence = Evidence {
+        platform: Some(PlatformSpec::new("linux", "x86_64")),
         subject: subject.clone(),
         property: "reproducible".into(),
         environment: EnvironmentSpec::new(),
@@ -85,6 +86,7 @@ fn vectors() -> Value {
         produced_at: LogicalTime::new(1),
     };
     let claim = Claim {
+        requirement: ScopeRequirement::default(),
         subject,
         property: "reproducible".into(),
         scope: "linux/x86_64".into(),

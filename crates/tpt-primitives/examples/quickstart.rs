@@ -9,6 +9,7 @@ use tpt_primitives::computation::{Computation, Operation, artifact_of_content};
 use tpt_primitives::environment::{EnvironmentSpec, PlatformSpec, ToolchainSpec};
 use tpt_primitives::evidence::{
     AssuranceLevel, AssuranceStore, Claim, Evidence, EvidenceKind, EvidenceResult, Obligation,
+    ScopeRequirement,
 };
 use tpt_primitives::id::AnyId;
 use tpt_primitives::time::LogicalTime;
@@ -32,6 +33,7 @@ fn main() {
     // 3. Evidence about the artifact, and claims that require a level.
     let subject = AnyId::from_id(&artifact);
     let evidence = Evidence {
+        platform: None,
         subject: subject.clone(),
         property: "reproducible".into(),
         environment: EnvironmentSpec::new(),
@@ -44,6 +46,7 @@ fn main() {
         produced_at: LogicalTime::new(1),
     };
     let claim = |level| Claim {
+        requirement: ScopeRequirement::default(),
         subject: subject.clone(),
         property: "reproducible".into(),
         scope: "linux/x86_64, rust 1.97.1".into(),

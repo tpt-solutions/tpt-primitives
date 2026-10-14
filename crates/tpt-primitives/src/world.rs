@@ -117,7 +117,7 @@ pub struct ExecutionWorld {
 }
 
 impl Canonical for ExecutionWorld {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for ExecutionWorld {
@@ -311,27 +311,36 @@ impl WorldRelevance {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct RelevantWorld {
     /// Time model, if relevant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub time_model: Option<TimeModel>,
     /// Platform, if relevant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub platform: Option<PlatformSpec>,
     /// Resources, if relevant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub resources: Option<ResourceSet>,
     /// Capabilities, if relevant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub capabilities: Option<BTreeSet<CapabilityId>>,
     /// Objects, if relevant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub objects: Option<BTreeMap<String, ArtifactId>>,
     /// Network policy, if relevant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub network: Option<NetworkPolicy>,
     /// Randomness policy, if relevant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub randomness: Option<RandomnessPolicy>,
     /// Environment, if relevant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub env: Option<EnvironmentSpec>,
     /// External dependencies, if relevant.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub external_dependencies: Option<BTreeMap<String, ArtifactId>>,
 }
 
 impl Canonical for RelevantWorld {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 /// What may be substituted when re-executing a reproduction (spec §17
@@ -394,7 +403,7 @@ pub struct ReproductionRequest {
 }
 
 impl Canonical for ReproductionRequest {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 /// The explicit five-way reproduction outcome classification (spec §17).

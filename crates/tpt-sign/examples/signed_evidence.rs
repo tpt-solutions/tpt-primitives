@@ -19,6 +19,7 @@ fn main() {
     println!("signer key: {}", build_service.public_key());
 
     let evidence = Evidence {
+        platform: None,
         subject: AnyId::from_id(&artifact_of_content(b"binary-v1")),
         property: "reproducible".into(),
         environment: EnvironmentSpec::new(),

@@ -22,10 +22,11 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::canonical::{Canonical, Identified};
-use crate::environment::{EnvironmentSpec, ToolchainSpec};
+use crate::environment::{EnvironmentSpec, PlatformSpec, ToolchainSpec};
 use crate::id::AnyId;
 use crate::ids::{ClaimId, ClaimTag, CounterexampleTag, EvidenceId, EvidenceTag, TraceId, WorldId};
 use crate::time::LogicalTime;
+use crate::value::PrimitiveMap;
 
 /// The typed evidence kinds (spec §13). Each carries its own
 /// ecosystem-relevant metadata; result strength is mapped through
@@ -120,6 +121,7 @@ pub struct Assumption {
     /// The assumed statement.
     pub statement: String,
     /// Evidence supporting the assumption, if any.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub evidence: Option<EvidenceId>,
 }
 
@@ -142,6 +144,11 @@ pub struct Evidence {
     pub property: String,
     /// The environment the evidence was produced in.
     pub environment: EnvironmentSpec,
+    /// The platform the evidence was produced on. `None` for evidence that
+    /// is independent of platform, such as a proof; a claim that requires a
+    /// platform does not count such evidence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<PlatformSpec>,
     /// The toolchain used to produce the evidence.
     pub toolchain: ToolchainSpec,
     /// Assumptions this evidence relies on.
@@ -155,7 +162,7 @@ pub struct Evidence {
 }
 
 impl Canonical for Evidence {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for Evidence {
@@ -263,6 +270,42 @@ impl Obligation {
     }
 }
 
+/// The structured part of a claim's scope. `Claim::scope` is human-readable
+/// text; these requirements are what assessment actually checks. Evidence
+/// that does not satisfy them is out of scope for the claim: it neither
+/// supports the claim nor refutes it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ScopeRequirement {
+    /// Evidence must have been produced on this platform.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<PlatformSpec>,
+    /// Evidence must have been produced with this toolchain.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toolchain: Option<ToolchainSpec>,
+    /// Evidence must have each of these environment variables with exactly
+    /// these values. Extra variables on the evidence are allowed.
+    pub environment: PrimitiveMap,
+}
+
+impl ScopeRequirement {
+    /// True if `evidence` was produced within this scope.
+    pub fn is_satisfied_by(&self, evidence: &Evidence) -> bool {
+        if let Some(required) = &self.platform
+            && evidence.platform.as_ref() != Some(required)
+        {
+            return false;
+        }
+        if let Some(required) = &self.toolchain
+            && evidence.toolchain != *required
+        {
+            return false;
+        }
+        self.environment
+            .iter()
+            .all(|(name, value)| evidence.environment.variables.get(name) == Some(value))
+    }
+}
+
 /// The claim primitive (spec §14): a node in the Assurance Graph.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Claim {
@@ -270,8 +313,10 @@ pub struct Claim {
     pub subject: AnyId,
     /// The property asserted.
     pub property: String,
-    /// The scope within which the property is asserted.
+    /// The scope within which the property is asserted, as text for people.
     pub scope: String,
+    /// The scope as checkable requirements; only evidence inside it counts.
+    pub requirement: ScopeRequirement,
     /// Assumptions the claim relies on.
     pub assumptions: BTreeSet<Assumption>,
     /// Obligations that must be discharged for this claim to stand.
@@ -283,7 +328,7 @@ pub struct Claim {
 }
 
 impl Canonical for Claim {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for Claim {
@@ -457,6 +502,10 @@ impl Claim {
                 continue;
             };
             if evidence.subject != self.subject || evidence.property != property {
+                continue;
+            }
+            // Evidence from outside the claim's scope is not about this claim.
+            if !self.requirement.is_satisfied_by(&evidence) {
                 continue;
             }
             match evidence.result {
@@ -697,6 +746,7 @@ pub struct Counterexample {
     /// The input or state that triggered the violation.
     pub input_state: crate::value::PrimitiveMap,
     /// The execution trace, when the violation was observed dynamically.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trace: Option<TraceId>,
     /// The environment of the violation.
     pub environment: EnvironmentSpec,
@@ -707,7 +757,7 @@ pub struct Counterexample {
 }
 
 impl Canonical for Counterexample {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for Counterexample {
@@ -731,6 +781,7 @@ mod tests {
 
     fn evidence_for(subject: &AnyId, property: &str, kind: EvidenceKind) -> Evidence {
         Evidence {
+            platform: None,
             subject: subject.clone(),
             property: property.into(),
             environment: EnvironmentSpec::new(),
@@ -857,6 +908,7 @@ mod tests {
         ));
 
         let claim = Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: "no_data_loss".into(),
             scope: "recovery path".into(),
@@ -879,6 +931,7 @@ mod tests {
     fn to_dot_draws_claims_and_dependencies() {
         let subject = subject_of_computation();
         let make = |property: &str, depends_on: BTreeSet<ClaimId>| Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: property.into(),
             scope: "scope \"x\"".into(),
@@ -923,6 +976,7 @@ mod tests {
         store.put_evidence(support.clone());
         store.put_evidence(proof.clone());
         let claim = Claim {
+            requirement: ScopeRequirement::default(),
             subject,
             property: "no_data_loss".into(),
             scope: "s".into(),
@@ -972,6 +1026,7 @@ mod tests {
     fn dependencies_pass_their_undischarged_assumptions_up() {
         let (mut store, dep) = assumption_fixture();
         let top = Claim {
+            requirement: ScopeRequirement::default(),
             subject: dep.subject.clone(),
             property: "top".into(),
             scope: "s".into(),
@@ -1013,6 +1068,125 @@ mod tests {
     }
 
     #[test]
+    fn scope_platform_gates_support_and_refutation() {
+        let subject = subject_of_computation();
+        let proof = || EvidenceKind::Proof { kernel: "k".into() };
+        let mut on_linux = evidence_for(&subject, "no_data_loss", proof());
+        on_linux.platform = Some(PlatformSpec::new("linux", "x86_64"));
+        let mut on_arm = evidence_for(&subject, "no_data_loss", proof());
+        on_arm.platform = Some(PlatformSpec::new("linux", "aarch64"));
+        let mut arm_failure = fail_evidence_for(&subject, "no_data_loss");
+        arm_failure.platform = Some(PlatformSpec::new("linux", "aarch64"));
+        // Platform-independent evidence, such as a bare proof, is not
+        // evidence about a particular platform.
+        let unplaced = evidence_for(&subject, "no_data_loss", proof());
+        let all = [&on_linux, &on_arm, &arm_failure, &unplaced];
+        let mut store = AssuranceStore::new();
+        for e in all {
+            store.put_evidence(e.clone());
+        }
+        let claim = |requirement: ScopeRequirement| Claim {
+            subject: subject.clone(),
+            property: "no_data_loss".into(),
+            scope: "linux/x86_64".into(),
+            requirement,
+            assumptions: BTreeSet::new(),
+            required_obligations: BTreeSet::new(),
+            evidence: all.iter().map(|e| e.identity()).collect(),
+            depends_on: BTreeSet::new(),
+        };
+
+        // Scoped to linux/x86_64: only the linux proof counts, and the
+        // aarch64 failure is out of scope, so it does not refute.
+        let scoped = claim(ScopeRequirement {
+            platform: Some(PlatformSpec::new("linux", "x86_64")),
+            ..ScopeRequirement::default()
+        });
+        assert_eq!(
+            scoped.assess(&store).unwrap().supported["no_data_loss"],
+            AssuranceLevel::FullyProven
+        );
+
+        // Unscoped: the failure on any platform refutes the property.
+        assert_eq!(
+            claim(ScopeRequirement::default())
+                .assess(&store)
+                .unwrap()
+                .supported["no_data_loss"],
+            AssuranceLevel::Unknown
+        );
+    }
+
+    #[test]
+    fn scope_toolchain_and_environment_must_match() {
+        let subject = subject_of_computation();
+        let mut e = evidence_for(&subject, "p", EvidenceKind::Proof { kernel: "k".into() });
+        e.environment = EnvironmentSpec::new()
+            .with("TZ", PrimitiveValue::Text("UTC".into()))
+            .with("JOBS", PrimitiveValue::Uint(4));
+        let mut store = AssuranceStore::new();
+        store.put_evidence(e.clone());
+        let level = |requirement: ScopeRequirement| {
+            Claim {
+                subject: subject.clone(),
+                property: "p".into(),
+                scope: "s".into(),
+                requirement,
+                assumptions: BTreeSet::new(),
+                required_obligations: BTreeSet::new(),
+                evidence: BTreeSet::from([e.identity()]),
+                depends_on: BTreeSet::new(),
+            }
+            .supported_level("p", &store)
+        };
+        let env = |pairs: &[(&str, PrimitiveValue)]| {
+            pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), v.clone()))
+                .collect::<PrimitiveMap>()
+        };
+
+        // A matching toolchain counts; a different one does not.
+        let concord = ToolchainSpec::new("concord", "0.1");
+        assert_eq!(
+            level(ScopeRequirement {
+                toolchain: Some(concord),
+                ..Default::default()
+            }),
+            AssuranceLevel::FullyProven
+        );
+        assert_eq!(
+            level(ScopeRequirement {
+                toolchain: Some(ToolchainSpec::new("rust", "1.97.1")),
+                ..Default::default()
+            }),
+            AssuranceLevel::Unknown
+        );
+        // Required variables must match exactly; extra variables are fine.
+        assert_eq!(
+            level(ScopeRequirement {
+                environment: env(&[("TZ", PrimitiveValue::Text("UTC".into()))]),
+                ..Default::default()
+            }),
+            AssuranceLevel::FullyProven
+        );
+        assert_eq!(
+            level(ScopeRequirement {
+                environment: env(&[("TZ", PrimitiveValue::Text("PST".into()))]),
+                ..Default::default()
+            }),
+            AssuranceLevel::Unknown
+        );
+        assert_eq!(
+            level(ScopeRequirement {
+                environment: env(&[("MISSING", PrimitiveValue::Uint(1))]),
+                ..Default::default()
+            }),
+            AssuranceLevel::Unknown
+        );
+    }
+
+    #[test]
     fn matching_failure_refutes_passing_evidence() {
         let subject = subject_of_computation();
         let mut store = AssuranceStore::new();
@@ -1026,6 +1200,7 @@ mod tests {
         store.put_evidence(failure.clone());
 
         let mut claim = Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: "no_data_loss".into(),
             scope: "recovery path".into(),
@@ -1065,6 +1240,7 @@ mod tests {
 
         // Requires full proof but only has fuzz evidence → rejected.
         let overstated = Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: "no_data_loss".into(),
             scope: "all paths".into(),
@@ -1088,6 +1264,7 @@ mod tests {
         // Requires only fuzz-tested → accepted, and per-property status
         // reads exactly like spec §24.
         let honest = Claim {
+            requirement: ScopeRequirement::default(),
             required_obligations: BTreeSet::from([Obligation::requires(
                 "no_data_loss",
                 AssuranceLevel::FuzzTested,
@@ -1111,6 +1288,7 @@ mod tests {
         let subject = subject_of_computation();
 
         let claim_a = Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: "wal_replay_preserves_committed_records".into(),
             scope: "recovery".into(),
@@ -1123,6 +1301,7 @@ mod tests {
             depends_on: BTreeSet::new(),
         };
         let claim_b = Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: "page_checksum_detects_corruption".into(),
             scope: "storage".into(),
@@ -1135,6 +1314,7 @@ mod tests {
             depends_on: BTreeSet::new(),
         };
         let claim_c = Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: "conforms_to_recovery_model".into(),
             scope: "implementation".into(),
@@ -1148,6 +1328,7 @@ mod tests {
         };
 
         let top = Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: "transaction_recovery_is_safe".into(),
             scope: "whole system".into(),
@@ -1278,6 +1459,7 @@ mod tests {
 
         let subject = subject_of_computation();
         let make = |property: String, depends_on: BTreeSet<ClaimId>| Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property,
             scope: "s".into(),
@@ -1318,6 +1500,7 @@ mod tests {
     fn dependency_cycles_are_detected() {
         let subject = subject_of_computation();
         let a = Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: "a".into(),
             scope: "s".into(),
@@ -1375,6 +1558,7 @@ mod tests {
         let phantom = Id::<EvidenceTag>::derive(b"phantom");
         let store = AssuranceStore::new();
         let claim = Claim {
+            requirement: ScopeRequirement::default(),
             subject: subject.clone(),
             property: "p".into(),
             scope: "s".into(),
@@ -1390,6 +1574,7 @@ mod tests {
 
         let phantom_claim = Id::<ClaimTag>::derive(b"phantom-claim");
         let claim2 = Claim {
+            requirement: ScopeRequirement::default(),
             depends_on: BTreeSet::from([phantom_claim]),
             ..claim
         };
@@ -1405,6 +1590,7 @@ mod tests {
         let mut store = AssuranceStore::new();
         store.put_evidence(fail_evidence_for(&subject, "no_data_loss"));
         let claim = Claim {
+            requirement: ScopeRequirement::default(),
             subject,
             property: "no_data_loss".into(),
             scope: "recovery".into(),
@@ -1448,6 +1634,7 @@ mod tests {
         let evidence = evidence_for(&other, "p", EvidenceKind::Proof { kernel: "k".into() });
         store.put_evidence(evidence.clone());
         let claim = Claim {
+            requirement: ScopeRequirement::default(),
             subject,
             property: "p".into(),
             scope: "s".into(),

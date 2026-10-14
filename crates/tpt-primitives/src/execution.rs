@@ -55,15 +55,18 @@ pub struct Execution {
     /// Logical tick the execution started.
     pub started_at: LogicalTime,
     /// Logical tick the execution ended, once known.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finished_at: Option<LogicalTime>,
     /// How the execution ended, once known.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub outcome: Option<ExecutionOutcome>,
     /// The trace of the execution, once recorded.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trace: Option<TraceId>,
 }
 
 impl Canonical for Execution {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 
     fn validate(&self) -> Result<(), CanonicalError> {
         if self.finished_at.is_some() != self.outcome.is_some() {
@@ -99,7 +102,7 @@ pub struct ExecutionSpec {
 }
 
 impl Canonical for ExecutionSpec {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for ExecutionSpec {
@@ -192,7 +195,7 @@ pub struct TraceEvent {
 }
 
 impl Canonical for TraceEvent {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for TraceEvent {
@@ -209,7 +212,7 @@ pub struct Trace {
 }
 
 impl Canonical for Trace {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for Trace {

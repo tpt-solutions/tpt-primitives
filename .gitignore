@@ -7,3 +7,6 @@
 .idea/
 .DS_Store
 Thumbs.db
+fuzz/target/
+fuzz/corpus/
+fuzz/artifacts/

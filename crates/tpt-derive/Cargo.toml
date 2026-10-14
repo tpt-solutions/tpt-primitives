@@ -1,0 +1,20 @@
+[package]
+name = "tpt-derive"
+description = "#[derive(Canonical)] for tpt-primitives canonical types"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = "2"
+
+[lints]
+workspace = true

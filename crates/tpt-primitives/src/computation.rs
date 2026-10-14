@@ -121,7 +121,7 @@ pub struct Computation {
 }
 
 impl Canonical for Computation {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for Computation {
@@ -219,7 +219,7 @@ pub struct DerivationSpec {
 }
 
 impl Canonical for DerivationSpec {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for DerivationSpec {
@@ -236,7 +236,7 @@ pub struct Derivation {
 }
 
 impl Canonical for Derivation {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Derivation {
@@ -267,6 +267,7 @@ pub struct Provenance {
     /// The derivation that produced it.
     pub derivation: DerivationId,
     /// The execution that ran the derivation, when applicable.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub execution: Option<ExecutionId>,
     /// Who/what produced the artifact.
     pub produced_by: Principal,
@@ -275,7 +276,7 @@ pub struct Provenance {
 }
 
 impl Canonical for Provenance {
-    const SCHEMA_VERSION: u16 = 1;
+    const SCHEMA_VERSION: u16 = 2;
 }
 
 impl Identified for Provenance {
