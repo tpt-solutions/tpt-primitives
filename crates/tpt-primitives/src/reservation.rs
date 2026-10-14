@@ -76,6 +76,37 @@ pub struct ReservationSpec {
 
 impl Canonical for ReservationSpec {
     const SCHEMA_VERSION: u16 = 1;
+
+    fn validate(&self) -> Result<(), CanonicalError> {
+        if self.expires_at.ticks() == 0 {
+            return Err(CanonicalError::InvalidContent(
+                "reservation must have a non-zero expiry".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl ReservationSpec {
+    /// Check that this reservation is a coherent claim for `intent`: it
+    /// names the intent's identity, and the claimed resources cover what
+    /// the intent needs. (Authority is separate: check each of the
+    /// intent's capabilities with `valid_authority`.)
+    pub fn check_against(&self, intent: &crate::intent::Intent) -> Result<(), CanonicalError> {
+        if self.intent != intent.identity() {
+            return Err(CanonicalError::InvalidContent(format!(
+                "reservation is for intent {}, not {}",
+                self.intent,
+                intent.identity()
+            )));
+        }
+        if !intent.resources.is_covered_by(&self.resources) {
+            return Err(CanonicalError::InvalidContent(
+                "reservation resources do not cover the intent's requirements".into(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 impl Identified for ReservationSpec {

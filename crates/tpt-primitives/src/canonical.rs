@@ -26,6 +26,14 @@ pub trait Canonical: Serialize + DeserializeOwned + Sized {
     /// `docs/evolution.md`.
     const SCHEMA_VERSION: u16;
 
+    /// Content invariants the constructors enforce (non-empty labels,
+    /// ordered windows, ...). Decoding calls this, so bytes that decode
+    /// but could never have been built through the constructors are
+    /// rejected instead of becoming objects that violate their own rules.
+    fn validate(&self) -> Result<(), CanonicalError> {
+        Ok(())
+    }
+
     /// Deterministic canonical bytes including the schema-version envelope.
     ///
     /// Serialization of in-memory canonical types is infallible, so the
@@ -52,6 +60,7 @@ pub trait Canonical: Serialize + DeserializeOwned + Sized {
         if payload.canonical_bytes() != bytes {
             return Err(CanonicalError::NonCanonical);
         }
+        payload.validate()?;
         Ok(payload)
     }
 }
@@ -124,6 +133,28 @@ mod tests {
                 found: 999
             }
         );
+    }
+
+    #[test]
+    fn decoding_runs_validate() {
+        #[derive(Debug, Serialize, Deserialize)]
+        struct Positive(u64);
+        impl Canonical for Positive {
+            const SCHEMA_VERSION: u16 = 1;
+            fn validate(&self) -> Result<(), CanonicalError> {
+                if self.0 == 0 {
+                    return Err(CanonicalError::InvalidContent("must be positive".into()));
+                }
+                Ok(())
+            }
+        }
+        let good = Positive(1).canonical_bytes();
+        assert!(Positive::from_canonical_bytes(&good).is_ok());
+        let bad = Positive(0).canonical_bytes();
+        assert!(matches!(
+            Positive::from_canonical_bytes(&bad),
+            Err(CanonicalError::InvalidContent(_))
+        ));
     }
 
     #[test]

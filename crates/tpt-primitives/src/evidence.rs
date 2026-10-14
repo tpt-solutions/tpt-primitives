@@ -163,6 +163,12 @@ impl Identified for Evidence {
 }
 
 /// The assurance hierarchy (spec §23, §24), ordered weakest → strongest.
+///
+/// This is a *strength ranking*, not a claim that, say, a conformance suite
+/// logically implies a simulation run. It decides which of several passing
+/// results to report and whether an obligation's minimum is met. Callers
+/// who need a different ranking should express it as obligations on
+/// specific properties rather than reordering levels.
 #[derive(
     Debug,
     Clone,
@@ -284,9 +290,32 @@ impl Identified for Claim {
     type Id = ClaimTag;
 }
 
+/// Optional strictness for [`Claim::assess_with_policy`]. The default
+/// policy is permissive about *who* produced evidence and reports
+/// undischarged assumptions without failing, so existing callers see
+/// unchanged behavior.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AssessmentPolicy {
+    /// If set, `Proof` evidence counts only when its `kernel` is in this
+    /// set. A self-declared proof from an unlisted kernel supports nothing
+    /// (it still cannot hide a matching failure).
+    pub trusted_kernels: Option<BTreeSet<String>>,
+    /// If true, assessment fails with
+    /// [`AssessmentError::UndischargedAssumption`] when any assumption of
+    /// the claim, its counting evidence or its dependencies lacks passing
+    /// supporting evidence.
+    pub require_discharged_assumptions: bool,
+}
+
 /// Errors from claim assessment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssessmentError {
+    /// An assumption has no passing supporting evidence and the policy
+    /// requires every assumption to be discharged.
+    UndischargedAssumption {
+        /// The assumed statement.
+        statement: String,
+    },
     /// Referenced evidence could not be resolved.
     MissingEvidence(EvidenceId),
     /// A referenced dependency claim could not be resolved.
@@ -307,6 +336,9 @@ pub enum AssessmentError {
 impl fmt::Display for AssessmentError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UndischargedAssumption { statement } => {
+                write!(f, "assumption {statement:?} has no passing evidence")
+            }
             Self::MissingEvidence(id) => write!(f, "evidence {id} not found"),
             Self::MissingClaim(id) => write!(f, "dependency claim {id} not found"),
             Self::DependencyCycle(id) => {
@@ -377,6 +409,10 @@ pub struct ClaimAssessment {
     /// status, never a blanket "verified"). Combines this claim's own
     /// evidence with what its dependencies support.
     pub supported: BTreeMap<String, AssuranceLevel>,
+    /// Assumptions, from this claim, its counting evidence and its
+    /// dependencies, that have no passing supporting evidence. What the
+    /// claim says holds only if these do.
+    pub undischarged_assumptions: BTreeSet<String>,
 }
 
 impl ClaimAssessment {
@@ -405,6 +441,16 @@ impl Claim {
         property: &str,
         resolver: &R,
     ) -> AssuranceLevel {
+        self.supported_level_with(property, resolver, &AssessmentPolicy::default())
+    }
+
+    /// [`Claim::supported_level`] under an explicit [`AssessmentPolicy`].
+    pub fn supported_level_with<R: AssuranceResolver>(
+        &self,
+        property: &str,
+        resolver: &R,
+        policy: &AssessmentPolicy,
+    ) -> AssuranceLevel {
         let mut best = AssuranceLevel::Unknown;
         for id in &self.evidence {
             let Some(evidence) = resolver.evidence(*id) else {
@@ -420,12 +466,60 @@ impl Claim {
                 EvidenceResult::Fail => return AssuranceLevel::Unknown,
                 EvidenceResult::Inconclusive => continue,
             }
+            if let (EvidenceKind::Proof { kernel }, Some(trusted)) =
+                (&evidence.kind, &policy.trusted_kernels)
+                && !trusted.contains(kernel)
+            {
+                continue;
+            }
             let level = AssuranceLevel::for_kind(&evidence.kind);
             if level > best {
                 best = level;
             }
         }
         best
+    }
+
+    /// Render this claim's dependency closure as a Graphviz `dot` graph:
+    /// one node per claim (property, scope, and the level its own evidence
+    /// supports) and an edge from each claim to what it depends on.
+    /// Dependencies the resolver cannot find are drawn dashed.
+    pub fn to_dot<R: AssuranceResolver>(&self, resolver: &R) -> String {
+        use std::fmt::Write as _;
+
+        fn quote(text: &str) -> String {
+            text.replace('\\', "\\\\").replace('"', "\\\"")
+        }
+        let mut out = String::from("digraph assurance {\n  rankdir=BT;\n  node [shape=box];\n");
+        let mut seen = BTreeSet::new();
+        let mut pending = vec![self.clone()];
+        while let Some(claim) = pending.pop() {
+            let id = claim.id();
+            if !seen.insert(id) {
+                continue;
+            }
+            let level = claim.supported_level(&claim.property, resolver);
+            let _ = writeln!(
+                out,
+                "  \"{id}\" [label=\"{}\\n{}\\n{}\"];",
+                quote(&claim.property),
+                quote(&claim.scope),
+                level.status_name()
+            );
+            for dep_id in &claim.depends_on {
+                if let Some(dep) = resolver.claim(*dep_id) {
+                    let _ = writeln!(out, "  \"{id}\" -> \"{dep_id}\";");
+                    pending.push(dep);
+                } else {
+                    let _ = writeln!(
+                        out,
+                        "  \"{dep_id}\" [label=\"missing\", style=dashed];\n  \"{id}\" -> \"{dep_id}\" [style=dashed];"
+                    );
+                }
+            }
+        }
+        out.push_str("}\n");
+        out
     }
 
     /// Assess this claim *and its dependency closure* against the
@@ -440,14 +534,24 @@ impl Claim {
         &self,
         resolver: &R,
     ) -> Result<ClaimAssessment, AssessmentError> {
+        self.assess_with_policy(resolver, &AssessmentPolicy::default())
+    }
+
+    /// [`Claim::assess`] under an explicit [`AssessmentPolicy`].
+    pub fn assess_with_policy<R: AssuranceResolver>(
+        &self,
+        resolver: &R,
+        policy: &AssessmentPolicy,
+    ) -> Result<ClaimAssessment, AssessmentError> {
         let mut stack = BTreeSet::new();
         let mut done = BTreeMap::new();
-        self.assess_inner(resolver, &mut stack, &mut done)
+        self.assess_inner(resolver, policy, &mut stack, &mut done)
     }
 
     fn assess_inner<R: AssuranceResolver>(
         &self,
         resolver: &R,
+        policy: &AssessmentPolicy,
         stack: &mut BTreeSet<ClaimId>,
         done: &mut BTreeMap<ClaimId, ClaimAssessment>,
     ) -> Result<ClaimAssessment, AssessmentError> {
@@ -460,7 +564,7 @@ impl Claim {
         if !stack.insert(id) {
             return Err(AssessmentError::DependencyCycle(id));
         }
-        let result = self.assess_no_cycle(resolver, stack, done);
+        let result = self.assess_no_cycle(resolver, policy, stack, done);
         stack.remove(&id);
         if let Ok(assessment) = &result {
             done.insert(id, assessment.clone());
@@ -471,6 +575,7 @@ impl Claim {
     fn assess_no_cycle<R: AssuranceResolver>(
         &self,
         resolver: &R,
+        policy: &AssessmentPolicy,
         stack: &mut BTreeSet<ClaimId>,
         done: &mut BTreeMap<ClaimId, ClaimAssessment>,
     ) -> Result<ClaimAssessment, AssessmentError> {
@@ -478,11 +583,13 @@ impl Claim {
         // Dependencies assess first (spec §18); their supported levels
         // become available to discharge this claim's obligations.
         let mut dependency_levels: BTreeMap<String, AssuranceLevel> = BTreeMap::new();
+        let mut undischarged: BTreeSet<String> = BTreeSet::new();
         for dep_id in &self.depends_on {
             let dep = resolver
                 .claim(*dep_id)
                 .ok_or(AssessmentError::MissingClaim(*dep_id))?;
-            let dep_assessment = dep.assess_inner(resolver, stack, done)?;
+            let dep_assessment = dep.assess_inner(resolver, policy, stack, done)?;
+            undischarged.extend(dep_assessment.undischarged_assumptions);
             for (property, level) in dep_assessment.supported {
                 let entry = dependency_levels
                     .entry(property)
@@ -512,12 +619,46 @@ impl Claim {
 
         let mut supported = BTreeMap::new();
         for property in properties {
-            let own = self.supported_level(&property, resolver);
+            let own = self.supported_level_with(&property, resolver, policy);
             let from_deps = dependency_levels
                 .get(&property)
                 .copied()
                 .unwrap_or(AssuranceLevel::Unknown);
             supported.insert(property, own.max(from_deps));
+        }
+
+        // Assumptions of the claim and of evidence that actually counts
+        // are discharged only by passing evidence of their own.
+        let discharged = |a: &Assumption| {
+            a.evidence
+                .and_then(|id| resolver.evidence(id))
+                .is_some_and(|e| e.result == EvidenceResult::Pass)
+        };
+        undischarged.extend(
+            self.assumptions
+                .iter()
+                .filter(|a| !discharged(a))
+                .map(|a| a.statement.clone()),
+        );
+        for evidence_id in &self.evidence {
+            if let Some(evidence) = resolver.evidence(*evidence_id)
+                && evidence.result == EvidenceResult::Pass
+            {
+                undischarged.extend(
+                    evidence
+                        .assumptions
+                        .iter()
+                        .filter(|a| !discharged(a))
+                        .map(|a| a.statement.clone()),
+                );
+            }
+        }
+        if policy.require_discharged_assumptions
+            && let Some(statement) = undischarged.iter().next()
+        {
+            return Err(AssessmentError::UndischargedAssumption {
+                statement: statement.clone(),
+            });
         }
 
         // Mechanical overstatement guard (spec §24).
@@ -538,6 +679,7 @@ impl Claim {
         Ok(ClaimAssessment {
             claim: id,
             supported,
+            undischarged_assumptions: undischarged,
         })
     }
 }
@@ -731,6 +873,143 @@ mod tests {
             assessment.supported["no_data_loss"],
             AssuranceLevel::FuzzTested
         );
+    }
+
+    #[test]
+    fn to_dot_draws_claims_and_dependencies() {
+        let subject = subject_of_computation();
+        let make = |property: &str, depends_on: BTreeSet<ClaimId>| Claim {
+            subject: subject.clone(),
+            property: property.into(),
+            scope: "scope \"x\"".into(),
+            assumptions: BTreeSet::new(),
+            required_obligations: BTreeSet::new(),
+            evidence: BTreeSet::new(),
+            depends_on,
+        };
+        let base = make("base", BTreeSet::new());
+        let ghost = Id::<ClaimTag>::derive(b"ghost");
+        let top = make("top", BTreeSet::from([base.id(), ghost]));
+        let mut store = AssuranceStore::new();
+        store.put_claim(base.clone());
+        store.put_claim(top.clone());
+
+        let dot = top.to_dot(&store);
+        assert!(dot.starts_with("digraph assurance {"));
+        assert!(dot.contains(&format!("\"{}\" -> \"{}\";", top.id(), base.id())));
+        assert!(dot.contains("style=dashed"), "missing dependency is dashed");
+        assert!(dot.contains("scope \\\"x\\\""), "labels are escaped");
+        assert!(dot.trim_end().ends_with('}'));
+    }
+
+    fn assumption_fixture() -> (AssuranceStore, Claim) {
+        let subject = subject_of_computation();
+        let support = evidence_for(
+            &subject,
+            "kernel_sound",
+            EvidenceKind::Proof {
+                kernel: "lean4".into(),
+            },
+        );
+        let mut proof = evidence_for(
+            &subject,
+            "no_data_loss",
+            EvidenceKind::Proof {
+                kernel: "homemade".into(),
+            },
+        );
+        proof.assumptions.insert(Assumption::of("disk is honest"));
+        let mut store = AssuranceStore::new();
+        store.put_evidence(support.clone());
+        store.put_evidence(proof.clone());
+        let claim = Claim {
+            subject,
+            property: "no_data_loss".into(),
+            scope: "s".into(),
+            assumptions: BTreeSet::from([
+                Assumption {
+                    statement: "kernel is sound".into(),
+                    evidence: Some(support.identity()),
+                },
+                Assumption::of("clocks are monotone"),
+            ]),
+            required_obligations: BTreeSet::new(),
+            evidence: BTreeSet::from([proof.identity()]),
+            depends_on: BTreeSet::new(),
+        };
+        (store, claim)
+    }
+
+    #[test]
+    fn undischarged_assumptions_are_reported_not_hidden() {
+        let (store, claim) = assumption_fixture();
+        let a = claim.assess(&store).unwrap();
+        assert_eq!(
+            a.undischarged_assumptions,
+            BTreeSet::from([
+                "clocks are monotone".to_owned(),
+                "disk is honest".to_owned()
+            ]),
+            "the discharged assumption must not be listed"
+        );
+        assert_eq!(a.supported["no_data_loss"], AssuranceLevel::FullyProven);
+    }
+
+    #[test]
+    fn strict_policy_rejects_undischarged_assumptions() {
+        let (store, claim) = assumption_fixture();
+        let policy = AssessmentPolicy {
+            require_discharged_assumptions: true,
+            ..AssessmentPolicy::default()
+        };
+        assert!(matches!(
+            claim.assess_with_policy(&store, &policy),
+            Err(AssessmentError::UndischargedAssumption { .. })
+        ));
+    }
+
+    #[test]
+    fn dependencies_pass_their_undischarged_assumptions_up() {
+        let (mut store, dep) = assumption_fixture();
+        let top = Claim {
+            subject: dep.subject.clone(),
+            property: "top".into(),
+            scope: "s".into(),
+            assumptions: BTreeSet::new(),
+            required_obligations: BTreeSet::new(),
+            evidence: BTreeSet::new(),
+            depends_on: BTreeSet::from([dep.id()]),
+        };
+        store.put_claim(dep);
+        assert!(
+            top.assess(&store)
+                .unwrap()
+                .undischarged_assumptions
+                .contains("clocks are monotone")
+        );
+    }
+
+    #[test]
+    fn untrusted_proof_kernel_supports_nothing() {
+        let (store, mut claim) = assumption_fixture();
+        claim.required_obligations.insert(Obligation::requires(
+            "no_data_loss",
+            AssuranceLevel::FullyProven,
+        ));
+        let policy = AssessmentPolicy {
+            trusted_kernels: Some(BTreeSet::from(["lean4".to_owned()])),
+            ..AssessmentPolicy::default()
+        };
+        assert!(matches!(
+            claim.assess_with_policy(&store, &policy),
+            Err(AssessmentError::Overstated { .. })
+        ));
+        let trusting = AssessmentPolicy {
+            trusted_kernels: Some(BTreeSet::from(["homemade".to_owned()])),
+            ..AssessmentPolicy::default()
+        };
+        claim.assess_with_policy(&store, &trusting).unwrap();
+        claim.assess(&store).unwrap();
     }
 
     #[test]
@@ -977,6 +1256,62 @@ mod tests {
             }
             other => panic!("expected overstatement error, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn shared_dependencies_are_assessed_once() {
+        use std::cell::Cell;
+
+        struct Counting {
+            inner: AssuranceStore,
+            lookups: Cell<usize>,
+        }
+        impl AssuranceResolver for Counting {
+            fn evidence(&self, id: EvidenceId) -> Option<Evidence> {
+                self.inner.evidence(id)
+            }
+            fn claim(&self, id: ClaimId) -> Option<Claim> {
+                self.lookups.set(self.lookups.get() + 1);
+                self.inner.claim(id)
+            }
+        }
+
+        let subject = subject_of_computation();
+        let make = |property: String, depends_on: BTreeSet<ClaimId>| Claim {
+            subject: subject.clone(),
+            property,
+            scope: "s".into(),
+            assumptions: BTreeSet::new(),
+            required_obligations: BTreeSet::new(),
+            evidence: BTreeSet::new(),
+            depends_on,
+        };
+        // A ladder of diamonds: both claims at each level depend on both
+        // claims one level down, so there are 2^levels paths to the root.
+        let mut store = AssuranceStore::new();
+        let mut below = BTreeSet::new();
+        let mut top = make("base".into(), below.clone());
+        store.put_claim(top.clone());
+        for level in 0..24 {
+            below = BTreeSet::from([top.id()]);
+            let a = make(format!("a{level}"), below.clone());
+            let b = make(format!("b{level}"), below);
+            store.put_claim(a.clone());
+            store.put_claim(b.clone());
+            below = BTreeSet::from([a.id(), b.id()]);
+            top = make(format!("top{level}"), below.clone());
+            store.put_claim(top.clone());
+        }
+        let resolver = Counting {
+            inner: store,
+            lookups: Cell::new(0),
+        };
+        top.assess(&resolver).unwrap();
+        assert!(
+            resolver.lookups.get() < 500,
+            "{} lookups: dependency assessment is not memoized",
+            resolver.lookups.get()
+        );
     }
 
     #[test]

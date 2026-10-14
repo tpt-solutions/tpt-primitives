@@ -1,6 +1,6 @@
 # ADR 0001: Canonical encoding and identity derivation
 
-Status: Accepted
+Status: Accepted (rules 1 and the identity encoding amended by ADR 0003)
 
 Date: 2026-10-05
 

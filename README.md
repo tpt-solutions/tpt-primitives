@@ -56,9 +56,14 @@ cargo run -p tpt-primitives --example capability_delegation  # attenuate, revoke
 cargo run -p tpt-primitives --example assurance_graph        # dependencies and refutation
 ```
 
+New here? Start with [`docs/getting-started.md`](docs/getting-started.md): a
+"which type do I need?" table, per-project entry points and a glossary.
+
 ## Layout
 
 - `crates/tpt-primitives` — the core library.
+- `crates/tpt-cli` — the `tpt` command: `inspect`, `id` and `diff` for canonical objects.
+- `testvectors/` — golden bytes and identities, plus an independent Python verifier.
 - `crates/schema-gen` — tool that generates JSON Schema / CDDL from the
   canonical types into `schemas/` (CI fails if the checked-in schemas drift).
 - `docs/decisions/` — architecture decision records (encoding, hashing, time model).

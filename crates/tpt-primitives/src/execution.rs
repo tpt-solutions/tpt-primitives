@@ -64,13 +64,67 @@ pub struct Execution {
 
 impl Canonical for Execution {
     const SCHEMA_VERSION: u16 = 1;
+
+    fn validate(&self) -> Result<(), CanonicalError> {
+        if self.finished_at.is_some() != self.outcome.is_some() {
+            return Err(CanonicalError::InvalidContent(
+                "execution must have both finish time and outcome, or neither".into(),
+            ));
+        }
+        if let Some(finished) = self.finished_at
+            && finished.is_before(self.started_at)
+        {
+            return Err(CanonicalError::InvalidContent(
+                "execution finished before it started".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// The identity-bearing part of an [`Execution`]: what ran, in which world,
+/// which attempt, starting when. Outcome, finish time and trace are
+/// recorded later and must not change who the execution *is* (the same
+/// pattern as `Capability` and `Reservation`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ExecutionSpec {
+    /// The computation executed.
+    pub computation: ComputationId,
+    /// The world it ran in.
+    pub world: WorldId,
+    /// Attempt number, starting at 1.
+    pub attempt: u32,
+    /// Logical tick at which the execution started.
+    pub started_at: LogicalTime,
+}
+
+impl Canonical for ExecutionSpec {
+    const SCHEMA_VERSION: u16 = 1;
+}
+
+impl Identified for ExecutionSpec {
+    type Id = ExecutionTag;
 }
 
 impl Identified for Execution {
     type Id = ExecutionTag;
+
+    fn identity(&self) -> crate::id::Id<ExecutionTag> {
+        self.spec().identity()
+    }
 }
 
 impl Execution {
+    /// The identity-bearing content of this execution.
+    pub fn spec(&self) -> ExecutionSpec {
+        ExecutionSpec {
+            computation: self.computation,
+            world: self.world,
+            attempt: self.attempt,
+            started_at: self.started_at,
+        }
+    }
+
     /// Begin an execution: attempt 1 at the given logical tick.
     pub fn begin(computation: ComputationId, world: WorldId, at: LogicalTime) -> Self {
         Self::begin_attempt(computation, world, 1, at)
@@ -150,7 +204,7 @@ impl Identified for TraceEvent {
 pub struct Trace {
     /// The execution this trace belongs to.
     pub execution: ExecutionId,
-    /// Events, stored in canonical (identity-sorted) order.
+    /// Events as recorded; identity uses the normalized causal order.
     pub events: Vec<TraceEvent>,
 }
 
@@ -198,20 +252,61 @@ impl Trace {
         self.events.push(event);
     }
 
-    /// Deterministic normalization (spec §12): events are ordered by
-    /// their stable identity, independent of the order they were
-    /// recorded in.
+    /// Deterministic normalization (spec §12): a causal order that does
+    /// not depend on recording order. Events are listed parents-first; among
+    /// events that are ready at the same time the smaller identity goes
+    /// first. Repeated identical events are kept (multiplicity matters:
+    /// three ticks are not one), and parents not present in the trace are
+    /// ignored for ordering.
     pub fn normalized(&self) -> Self {
-        let mut events = self.events.clone();
-        events.sort_by_key(TraceEvent::identity);
-        events.dedup_by_key(|e| e.identity());
+        use std::collections::BTreeMap;
+
+        let ids: Vec<TraceEventId> = self.events.iter().map(TraceEvent::identity).collect();
+        let known: BTreeSet<TraceEventId> = ids.iter().copied().collect();
+
+        // pending[i]: distinct known parents of event i not yet placed.
+        let mut pending: Vec<usize> = vec![0; ids.len()];
+        let mut waiting: BTreeMap<TraceEventId, Vec<usize>> = BTreeMap::new();
+        for (i, event) in self.events.iter().enumerate() {
+            for parent in event.causal_parents.iter().filter(|p| known.contains(*p)) {
+                pending[i] += 1;
+                waiting.entry(*parent).or_default().push(i);
+            }
+        }
+
+        let mut ready: BTreeSet<(TraceEventId, usize)> = (0..ids.len())
+            .filter(|i| pending[*i] == 0)
+            .map(|i| (ids[i], i))
+            .collect();
+        let mut placed_ids: BTreeSet<TraceEventId> = BTreeSet::new();
+        let mut order: Vec<usize> = Vec::with_capacity(ids.len());
+        while let Some((id, i)) = ready.pop_first() {
+            order.push(i);
+            if placed_ids.insert(id) {
+                for dependent in waiting.remove(&id).unwrap_or_default() {
+                    pending[dependent] -= 1;
+                    if pending[dependent] == 0 {
+                        ready.insert((ids[dependent], dependent));
+                    }
+                }
+            }
+        }
+        // Content addressing rules out cycles; stragglers cannot occur, but
+        // normalization must stay total, so place any by identity.
+        if order.len() < ids.len() {
+            let placed: BTreeSet<usize> = order.iter().copied().collect();
+            let mut rest: Vec<usize> = (0..ids.len()).filter(|i| !placed.contains(i)).collect();
+            rest.sort_by_key(|i| (ids[*i], *i));
+            order.extend(rest);
+        }
+
         Self {
             execution: self.execution,
-            events,
+            events: order.into_iter().map(|i| self.events[i].clone()).collect(),
         }
     }
 
-    /// Every event identity in canonical order.
+    /// Every event identity in normalized (causal) order, repeats included.
     pub fn event_ids(&self) -> Vec<TraceEventId> {
         self.normalized()
             .events
@@ -221,17 +316,34 @@ impl Trace {
     }
 
     /// Compare this trace against a replay of the same execution.
-    /// Divergence detection is exact: two traces match iff their event
-    /// identity sets are equal.
+    /// Divergence detection is exact on the multiset of event identities:
+    /// a missing, extra or repeated-differently event is a divergence;
+    /// reordering of independent events is not (it is not observable in
+    /// the causal record).
     pub fn compare_replay(&self, replay: &Trace) -> TraceComparison {
-        let a: BTreeSet<TraceEventId> = self.event_ids().into_iter().collect();
-        let b: BTreeSet<TraceEventId> = replay.event_ids().into_iter().collect();
+        use std::collections::BTreeMap;
+
+        fn counts(ids: Vec<TraceEventId>) -> BTreeMap<TraceEventId, usize> {
+            let mut map = BTreeMap::new();
+            for id in ids {
+                *map.entry(id).or_insert(0) += 1;
+            }
+            map
+        }
+        let a = counts(self.event_ids());
+        let b = counts(replay.event_ids());
         if a == b {
             return TraceComparison::Identical;
         }
+        let excess = |x: &BTreeMap<TraceEventId, usize>, y: &BTreeMap<TraceEventId, usize>| {
+            x.iter()
+                .filter(|(id, n)| **n > y.get(*id).copied().unwrap_or(0))
+                .map(|(id, _)| *id)
+                .collect::<BTreeSet<_>>()
+        };
         TraceComparison::Diverged {
-            missing: a.difference(&b).copied().collect(),
-            unexpected: b.difference(&a).copied().collect(),
+            missing: excess(&a, &b),
+            unexpected: excess(&b, &a),
         }
     }
 
@@ -252,9 +364,8 @@ impl Trace {
         Ok(())
     }
 
-    /// Replay support (spec §12): the events that must be fed to a
-    /// re-execution, in causal order (normalized order is causal-total-
-    /// order-agnostic; consumers order by their own dependency walk).
+    /// Replay support (spec §12): the events to feed a re-execution, in
+    /// normalized causal order (every event after its parents).
     pub fn replay_worklist(&self) -> Vec<TraceEventId> {
         self.event_ids()
     }
@@ -376,12 +487,58 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_events_collapse() {
+    fn repeated_events_keep_their_multiplicity() {
+        let tick = event("tick", BTreeSet::new());
+        let exec = Id::derive(b"exec");
+        let mut three = Trace::for_execution(exec);
+        for _ in 0..3 {
+            three.push(tick.clone());
+        }
+        let mut one = Trace::for_execution(exec);
+        one.push(tick.clone());
+
+        assert_eq!(three.normalized().events.len(), 3);
+        assert_ne!(three.identity(), one.identity());
+        assert_eq!(
+            one.compare_replay(&three),
+            TraceComparison::Diverged {
+                missing: BTreeSet::new(),
+                unexpected: BTreeSet::from([tick.identity()]),
+            }
+        );
+    }
+
+    #[test]
+    fn normalized_order_puts_parents_first() {
         let a = event("a", BTreeSet::new());
+        let b = event("b", BTreeSet::from([a.identity()]));
+        let c = event("c", BTreeSet::from([b.identity()]));
         let mut t = Trace::for_execution(Id::derive(b"exec"));
+        // Recorded child-first on purpose.
+        t.push(c.clone());
         t.push(a.clone());
-        t.push(a.clone());
-        assert_eq!(t.normalized().events.len(), 1);
+        t.push(b.clone());
+        assert_eq!(
+            t.replay_worklist(),
+            vec![a.identity(), b.identity(), c.identity()]
+        );
+    }
+
+    #[test]
+    fn execution_identity_survives_finish_and_trace() {
+        let mut e = Execution::begin(computation(), world(), LogicalTime::new(3));
+        let before = e.identity();
+        e.finish(
+            LogicalTime::new(9),
+            ExecutionOutcome::Failed { reason: "x".into() },
+        )
+        .unwrap();
+        let e = e.with_trace(Id::derive(b"trace"));
+        assert_eq!(e.identity(), before, "outcome is not identity");
+        assert_ne!(
+            e.canonical_bytes(),
+            Execution::begin(computation(), world(), LogicalTime::new(3)).canonical_bytes()
+        );
     }
 
     #[test]

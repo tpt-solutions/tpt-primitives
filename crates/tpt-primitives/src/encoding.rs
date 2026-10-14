@@ -12,6 +12,7 @@
 //! fields, `BTreeSet`/`BTreeMap` only, no floats — is documented in
 //! `docs/decisions/0001-canonical-encoding-and-identity.md`.
 
+use ciborium::value::Value;
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::error::CanonicalError;
@@ -28,10 +29,41 @@ const ARRAY_OF_3: u8 = 0x83;
 /// CBOR, no floats, no maps with non-string keys), so the result is
 /// unwrapped; a bug would panic loudly rather than corrupt identity.
 pub fn encode_envelope<T: Serialize + ?Sized>(schema_version: u16, payload: &T) -> Vec<u8> {
-    let mut buf = Vec::new();
-    ciborium::ser::into_writer(&(ENVELOPE_MAGIC, schema_version, payload), &mut buf)
+    let value = Value::serialized(payload)
         .unwrap_or_else(|e| panic!("canonical CBOR encoding is infallible: {e}"));
+    let mut buf = Vec::new();
+    ciborium::ser::into_writer(
+        &(ENVELOPE_MAGIC, schema_version, sort_map_keys(value)),
+        &mut buf,
+    )
+    .unwrap_or_else(|e| panic!("canonical CBOR encoding is infallible: {e}"));
     buf
+}
+
+/// Apply RFC 8949 §4.2.1 core deterministic map ordering: entries sorted
+/// bytewise by their encoded keys, recursively. Integers are already
+/// shortest-form and lengths definite in ciborium's output; floats never
+/// occur (ADR 0001).
+fn sort_map_keys(value: Value) -> Value {
+    match value {
+        Value::Map(entries) => {
+            let mut keyed: Vec<(Vec<u8>, Value, Value)> = entries
+                .into_iter()
+                .map(|(k, v)| {
+                    let k = sort_map_keys(k);
+                    let mut encoded = Vec::new();
+                    ciborium::ser::into_writer(&k, &mut encoded)
+                        .unwrap_or_else(|e| panic!("canonical CBOR encoding is infallible: {e}"));
+                    (encoded, k, sort_map_keys(v))
+                })
+                .collect();
+            keyed.sort_by(|a, b| a.0.cmp(&b.0));
+            Value::Map(keyed.into_iter().map(|(_, k, v)| (k, v)).collect())
+        }
+        Value::Array(items) => Value::Array(items.into_iter().map(sort_map_keys).collect()),
+        Value::Tag(tag, inner) => Value::Tag(tag, Box::new(sort_map_keys(*inner))),
+        other => other,
+    }
 }
 
 /// Decode canonical bytes, returning the schema version and payload.
@@ -139,6 +171,34 @@ mod tests {
             decode_envelope::<String>(&bytes),
             Err(CanonicalError::TrailingBytes(1))
         ));
+    }
+
+    #[test]
+    fn map_keys_use_rfc8949_order() {
+        #[derive(Serialize)]
+        struct Fields {
+            zebra: u8,
+            b: u8,
+            aa: u8,
+        }
+        // Length-first bytewise order: "b" (1 byte) < "aa" < "zebra".
+        let bytes = encode_envelope(
+            1,
+            &Fields {
+                zebra: 1,
+                b: 2,
+                aa: 3,
+            },
+        );
+        let (_, v): (u16, Value) = decode_envelope(&bytes).unwrap();
+        let Value::Map(entries) = v else {
+            panic!("expected a map")
+        };
+        let keys: Vec<_> = entries
+            .iter()
+            .map(|(k, _)| k.as_text().unwrap().to_owned())
+            .collect();
+        assert_eq!(keys, ["b", "aa", "zebra"]);
     }
 
     #[test]

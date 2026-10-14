@@ -37,6 +37,19 @@ pub fn from_hex<const N: usize>(hex: &str) -> Result<[u8; N], crate::error::Cano
     Ok(out)
 }
 
+/// Decode hex of any even length into bytes.
+pub fn from_hex_vec(hex: &str) -> Result<Vec<u8>, crate::error::CanonicalError> {
+    let err =
+        || crate::error::CanonicalError::BadHex("expected an even number of hex digits".into());
+    if !hex.len().is_multiple_of(2) {
+        return Err(err());
+    }
+    hex.as_bytes()
+        .chunks(2)
+        .map(|c| Ok((val(c[0]).ok_or_else(err)? << 4) | val(c[1]).ok_or_else(err)?))
+        .collect()
+}
+
 fn val(b: u8) -> Option<u8> {
     match b {
         b'0'..=b'9' => Some(b - b'0'),
@@ -69,6 +82,14 @@ mod tests {
         let hex = to_hex(&bytes);
         assert_eq!(hex.len(), 64);
         assert_eq!(from_hex::<32>(&hex).unwrap(), bytes);
+    }
+
+    #[test]
+    fn variable_length_hex() {
+        assert_eq!(from_hex_vec("00ff10").unwrap(), [0x00, 0xff, 0x10]);
+        assert_eq!(from_hex_vec("").unwrap(), Vec::<u8>::new());
+        assert!(from_hex_vec("abc").is_err());
+        assert!(from_hex_vec("zz").is_err());
     }
 
     #[test]

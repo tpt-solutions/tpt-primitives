@@ -122,16 +122,39 @@ impl<T: IdClass> fmt::Debug for Id<T> {
     }
 }
 
+// ADR 0003: human-readable formats (JSON) render an identity as 64
+// lowercase hex characters; binary formats (canonical CBOR) carry the 32
+// raw digest bytes as a byte string.
 impl<T: IdClass> Serialize for Id<T> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.hex())
+        if serializer.is_human_readable() {
+            serializer.serialize_str(&self.hex())
+        } else {
+            serializer.serialize_bytes(&self.bytes)
+        }
     }
 }
 
 impl<'de, T: IdClass> Deserialize<'de> for Id<T> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let hex = String::deserialize(deserializer)?;
-        Self::from_hex(&hex).map_err(serde::de::Error::custom)
+        // Accepts both forms regardless of the format's self-reported
+        // readability: serde's buffering of internally tagged enums hides it.
+        // Canonical decoding re-encodes and compares, so a hex string inside
+        // canonical CBOR is still rejected as non-canonical.
+        struct IdVisitor;
+        impl serde::de::Visitor<'_> for IdVisitor {
+            type Value = [u8; 32];
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("a 32-byte identity digest or its 64-character hex form")
+            }
+            fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                <[u8; 32]>::try_from(v).map_err(|_| E::invalid_length(v.len(), &"32 bytes"))
+            }
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                hash::from_hex(v).map_err(E::custom)
+            }
+        }
+        deserializer.deserialize_any(IdVisitor).map(Self::from_raw)
     }
 }
 
@@ -229,6 +252,19 @@ mod tests {
         let id = TestId::derive(b"hex");
         assert_eq!(Id::from_hex(&id.hex()).unwrap(), id);
         assert!(TestId::from_hex("nothex").is_err());
+    }
+
+    #[test]
+    fn cbor_carries_raw_bytes_and_json_carries_hex() {
+        let id = TestId::derive(b"wire");
+        let bytes = crate::encoding::encode_envelope(1, &id);
+        let (_, value): (u16, ciborium::value::Value) =
+            crate::encoding::decode_envelope(&bytes).unwrap();
+        assert_eq!(value, ciborium::value::Value::Bytes(id.as_bytes().to_vec()));
+
+        let json = serde_json::to_string(&id).unwrap();
+        assert_eq!(json, format!("\"{}\"", id.hex()));
+        assert_eq!(serde_json::from_str::<TestId>(&json).unwrap(), id);
     }
 
     #[test]

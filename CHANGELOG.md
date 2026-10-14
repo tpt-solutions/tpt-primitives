@@ -13,20 +13,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parent capability invalidates its descendants.
 - `Capability::transfer_with_lease` and `CapabilityError::LeaseBound`.
 - `CanonicalError::NonCanonical` and `PrimitiveValue::int`.
+- `tpt` CLI (`crates/tpt-cli`): `inspect`, `id`, `diff`.
+- `Claim::to_dot` Graphviz export of the assurance graph.
+- `prelude` module; `hash::from_hex_vec`.
+- Golden vectors (`testvectors/v1.json`), an independent verifier
+  (`testvectors/verify.py`), property tests, ADR 0003, `CONTRIBUTING.md`,
+  `docs/getting-started.md`, dependabot and extra CI jobs (docs, examples,
+  vector verification).
 - Examples: `quickstart`, `capability_delegation`, `assurance_graph`.
 
 ### Changed
 
+- **Breaking encoding (pre-release, ADR 0003):** map keys now use RFC 8949
+  section 4.2.1 order, and identities are 32-byte byte strings in canonical
+  CBOR (hex only in JSON). Every identity differs from earlier builds; the
+  CDDL `tpt-id` is now `bstr .size 32`.
 - **Behavior:** `Canonical::from_canonical_bytes` now rejects bytes that
   decode but are not the canonical encoding (non-minimal integers,
   uppercase identity hex, indefinite lengths).
 - **Behavior:** a matching `Fail` evidence result now refutes a property
   (supported level `Unknown`) instead of being ignored next to a passing run.
+- **API:** `Execution::finish` returns `Result` and rejects a second finish or
+  a finish before the start tick.
 - **API:** `Epoch::transition` returns `Option<Epoch>`; the counter no
   longer overflows. `EpochBook::transition` errors on exhaustion.
 
 ### Fixed
 
+- `Claim::assess` re-assessed shared dependencies on every path (exponential on
+  diamond graphs); results are now memoized per call.
 - `Capability::transfer` succeeded on a revoked capability.
 - Transferring or attenuating a lease-bound capability to another holder
   produced a child that could never pass `valid_authority`; it now needs a

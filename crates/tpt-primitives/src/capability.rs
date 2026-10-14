@@ -34,6 +34,7 @@ use crate::time::LogicalTime;
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
 )]
+#[serde(try_from = "String")]
 pub struct Principal(String);
 
 impl Principal {
@@ -54,6 +55,14 @@ impl Principal {
     }
 }
 
+impl TryFrom<String> for Principal {
+    type Error = CanonicalError;
+
+    fn try_from(label: String) -> Result<Self, Self::Error> {
+        Self::new(label)
+    }
+}
+
 impl fmt::Display for Principal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
@@ -65,6 +74,7 @@ impl fmt::Display for Principal {
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
 )]
+#[serde(try_from = "String")]
 pub struct AuthorityDomain(String);
 
 impl AuthorityDomain {
@@ -82,6 +92,14 @@ impl AuthorityDomain {
     /// The domain label.
     pub fn label(&self) -> &str {
         &self.0
+    }
+}
+
+impl TryFrom<String> for AuthorityDomain {
+    type Error = CanonicalError;
+
+    fn try_from(label: String) -> Result<Self, Self::Error> {
+        Self::new(label)
     }
 }
 
@@ -136,6 +154,16 @@ pub struct Lease {
 
 impl Canonical for Lease {
     const SCHEMA_VERSION: u16 = 1;
+
+    fn validate(&self) -> Result<(), CanonicalError> {
+        Self::new(
+            self.domain.clone(),
+            self.holder.clone(),
+            self.valid_from,
+            self.expires_at,
+        )
+        .map(|_| ())
+    }
 }
 
 impl Identified for Lease {
@@ -280,6 +308,18 @@ pub struct CapabilityGrant {
 
 impl Canonical for CapabilityGrant {
     const SCHEMA_VERSION: u16 = 1;
+
+    fn validate(&self) -> Result<(), CanonicalError> {
+        if self.grants.is_empty() {
+            return Err(CanonicalError::InvalidContent(
+                "a capability must carry at least one grant".into(),
+            ));
+        }
+        for grant in &self.grants {
+            Grant::new(grant.resource.clone(), grant.action.clone())?;
+        }
+        Ok(())
+    }
 }
 
 impl Identified for CapabilityGrant {
@@ -990,6 +1030,31 @@ mod tests {
         assert!(Capability::mint(domain(), alice(), Vec::<Grant>::new(), false).is_err());
         assert!(AuthorityDomain::new("").is_err());
         assert!(Principal::new("").is_err());
+    }
+
+    #[test]
+    fn decoding_enforces_constructor_invariants() {
+        // Empty labels and inverted lease windows are unbuildable, so
+        // bytes that say otherwise must not decode.
+        let lease = Lease {
+            domain: domain(),
+            holder: alice(),
+            valid_from: LogicalTime::new(10),
+            expires_at: LogicalTime::new(5),
+        };
+        assert!(Lease::from_canonical_bytes(&lease.canonical_bytes()).is_err());
+
+        let mut grant = root_capability().grant;
+        grant.grants = BTreeSet::from([Grant {
+            resource: String::new(),
+            action: "read".into(),
+        }]);
+        assert!(CapabilityGrant::from_canonical_bytes(&grant.canonical_bytes()).is_err());
+        grant.grants.clear();
+        assert!(CapabilityGrant::from_canonical_bytes(&grant.canonical_bytes()).is_err());
+
+        let empty_label = crate::encoding::encode_envelope(1, &"");
+        assert!(crate::encoding::decode_envelope::<Principal>(&empty_label).is_err());
     }
 
     #[test]

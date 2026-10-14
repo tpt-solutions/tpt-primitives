@@ -39,6 +39,7 @@ pub mod hash;
 pub mod id;
 pub mod ids;
 pub mod intent;
+pub mod prelude;
 pub mod reservation;
 pub mod resources;
 pub mod schema;

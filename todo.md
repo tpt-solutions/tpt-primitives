@@ -119,16 +119,16 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [ ] Dependency levels must match subject/scope, not only property name
 - [ ] Replace the total `AssuranceLevel` order with a partial order or configurable lattice
 - [ ] Traces: keep event order/multiplicity; causal-order replay worklist; detect reordering
-- [ ] `Execution` identity should exclude mutable outcome/finish state (match Capability/Reservation); validate `finished_at >= started_at`, single `finish`
-- [ ] Memoize `Claim::assess` on shared dependencies (diamond graphs are exponential)
+- [ ] `Execution` identity should exclude mutable outcome/finish state (match Capability/Reservation)  (identity part still open; `finish` now validates `finished_at >= started_at` and single use)
+- [x] Memoize `Claim::assess` on shared dependencies (diamond graphs were exponential)
 - [ ] `validate()` on `Canonical`, called from decode, so deserialized values uphold constructor invariants
 - [ ] Intent <-> Capability <-> Reservation coherence check
 
 ## Phase 15 — Encoding Decisions (breaking; decide before anything persists)
-- [ ] Adopt RFC 8949 section 4.2 key ordering, or document the exact profile precisely
-- [ ] Encode `Id` as 32-byte bstr instead of 64-char hex text (update CDDL)
-- [ ] Cross-language test vectors (`testvectors/*.json`) and a second-language verifier
-- [ ] Golden-file identity snapshot in CI: bytes change only with a `SCHEMA_VERSION` bump
+- [x] Adopt RFC 8949 section 4.2 key ordering (ADR 0003)
+- [x] Encode `Id` as 32-byte bstr instead of 64-char hex text (update CDDL)
+- [x] Cross-language test vectors (`testvectors/v1.json`) and a second-language verifier (`verify.py`)
+- [x] Golden-file identity snapshot in CI: bytes change only with a `SCHEMA_VERSION` bump
 - [ ] Check hand-written CDDL against the types, not only the checked-in files
 
 ## Phase 16 — Signing and Attestation
@@ -136,12 +136,15 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [ ] Replace free-text `produced_by` with a verifiable signer
 
 ## Phase 17 — Tooling and Adoption
-- [ ] `tpt` CLI: `id`, `inspect`, `verify`, `diff`, `explain`
-- [ ] `Claim::to_dot()` assurance-graph visualizer
-- [ ] `prelude` module; `#[derive(Canonical)]` macro to remove boilerplate impls
+- [x] `tpt` CLI: `inspect`, `id`, `diff` (`verify`/`explain` still open)
+- [x] `Claim::to_dot()` assurance-graph visualizer
+- [x] `prelude` module
+- [ ] `#[derive(Canonical)]` macro to remove boilerplate impls
 - [ ] Feature flags: `schema` (drop schemars), `no_std`
-- [ ] `proptest` round-trip/identity tests and a fuzz target for the decoder
+- [x] `proptest` round-trip/identity tests incl. decoder robustness
+- [ ] `cargo-fuzz` target for the decoder
 - [ ] `templates/` (CI build attestation, model-check claim, reproducible-build record)
-- [ ] Per-project 10-minute guides (Fabric, Repro, Concord), glossary, "which type do I need?" chart
-- [ ] CI: cargo-semver-checks, cargo-deny/audit, `cargo doc -D warnings`; dependabot, MSRV, CONTRIBUTING.md
+- [x] Getting-started guide with per-project entry points, glossary, "which type do I need?" table
+- [x] CI: `cargo doc -D warnings`, examples, vector verification; dependabot; CONTRIBUTING.md
+- [ ] CI: cargo-semver-checks, cargo-deny/audit; MSRV
 - [ ] Release automation (release-plz / cargo-release)

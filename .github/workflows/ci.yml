@@ -45,3 +45,27 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo run -p schema-gen -- --check
+
+  docs:
+    name: rustdoc + examples
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo doc --workspace --no-deps
+      - run: cargo run -p tpt-primitives --example quickstart
+      - run: cargo run -p tpt-primitives --example capability_delegation
+      - run: cargo run -p tpt-primitives --example assurance_graph
+
+  vectors:
+    name: independent vector check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install cbor2
+      - run: python testvectors/verify.py

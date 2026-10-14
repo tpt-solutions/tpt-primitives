@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/tpt-primitives", "crates/schema-gen"]
+members = ["crates/tpt-primitives", "crates/schema-gen", "crates/tpt-cli"]
 
 [workspace.package]
 version = "0.1.0"

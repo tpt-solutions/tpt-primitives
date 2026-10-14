@@ -37,9 +37,12 @@ macro_rules! entry {
 
 /// Shared CDDL prelude: identities, scalars, and small common types.
 pub const CDDL_PRELUDE: &str = r#"; TPT Primitives canonical types (payloads; wire form wraps each
-; payload in tpt-envelope<V> = ["tpt-canonical", version: uint, payload: V])
+; payload in tpt-envelope<V> = ["tpt-canonical", version: uint, payload: V]).
+; Maps use RFC 8949 section 4.2.1 deterministic key order (ADR 0003).
 
-tpt-id = text .regexp "[0-9a-f]{64}"
+; In canonical CBOR an identity is its 32 raw digest bytes (ADR 0003);
+; JSON views render it as 64 lowercase hex characters.
+tpt-id = bstr .size 32
 tpt-principal = { holder: text }
 tpt-domain = { domain: text }
 

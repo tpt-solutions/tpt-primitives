@@ -172,13 +172,14 @@ fn cross_project_chain_composes() {
     let trace_normalized = trace.normalized();
     let trace_id: TraceId = trace.identity();
 
-    execution.finish(
-        LogicalTime::new(90),
-        ExecutionOutcome::Succeeded {
-            artifacts: BTreeSet::new(), // filled by Repro below
-        },
-    )
-    .unwrap();
+    execution
+        .finish(
+            LogicalTime::new(90),
+            ExecutionOutcome::Succeeded {
+                artifacts: BTreeSet::new(), // filled by Repro below
+            },
+        )
+        .unwrap();
     let execution = execution.with_trace(trace_id);
     assert!(trace.causal_parents_resolved().is_ok());
 
