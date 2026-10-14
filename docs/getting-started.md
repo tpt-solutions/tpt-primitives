@@ -64,7 +64,18 @@ cargo run -p tpt-cli -- diff a.cbor b.cbor            # which fields differ
 
 Add `--hex` when the input is hex text, as in `testvectors/v1.json`.
 
-## 6. Use it from another language
+## 6. Sign things
+
+`tpt-sign` adds `Signed<T>`: an object plus an Ed25519 signature over its
+identity. Decoding a forged envelope fails.
+
+```text
+cargo run -p tpt-sign --example signed_evidence
+```
+
+Who a key *is* and what it may sign is policy for Fabric and Concord (ADR 0004).
+
+## 7. Use it from another language
 
 Canonical bytes are RFC 8949 section 4.2 deterministic CBOR in an envelope
 `["tpt-canonical", schema_version, payload]`; identity is

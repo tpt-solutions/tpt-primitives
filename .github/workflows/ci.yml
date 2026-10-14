@@ -58,6 +58,7 @@ jobs:
       - run: cargo run -p tpt-primitives --example quickstart
       - run: cargo run -p tpt-primitives --example capability_delegation
       - run: cargo run -p tpt-primitives --example assurance_graph
+      - run: cargo run -p tpt-sign --example signed_evidence
 
   vectors:
     name: independent vector check
@@ -67,5 +68,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install cbor2
+      - run: pip install cbor2 cryptography
       - run: python testvectors/verify.py

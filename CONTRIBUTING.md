@@ -11,7 +11,7 @@ cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo run -p schema-gen          # regenerate schemas/ if a canonical type changed
-python testvectors/verify.py     # needs: pip install cbor2
+python testvectors/verify.py     # needs: pip install cbor2 cryptography
 ```
 
 CI runs the same checks plus `cargo doc -D warnings` and the examples.
@@ -23,6 +23,7 @@ versioned event (`docs/evolution.md`):
 
 1. Bump the type's `SCHEMA_VERSION`.
 2. Regenerate the golden vectors: `TPT_BLESS=1 cargo test -p tpt-primitives --test vectors`.
+   (and `TPT_BLESS=1 cargo test -p tpt-sign --test vectors` if signing changed)
 3. Regenerate schemas with `cargo run -p schema-gen`.
 4. Describe the change under `## [Unreleased]` in `CHANGELOG.md`.
 

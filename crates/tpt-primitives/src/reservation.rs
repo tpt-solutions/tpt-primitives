@@ -332,6 +332,30 @@ mod tests {
     }
 
     #[test]
+    fn reservation_must_match_its_intent() {
+        use crate::intent::Intent;
+        let intent = Intent::build()
+            .resources(ResourceSet::new().with(ResourceKind::CpuCores, 2))
+            .finish();
+        let mut ok = spec(LogicalTime::new(100));
+        ok.intent = intent.identity();
+        ok.check_against(&intent).unwrap();
+
+        // Wrong intent.
+        assert!(spec(LogicalTime::new(100)).check_against(&intent).is_err());
+
+        // Too few resources.
+        let mut small = ok.clone();
+        small.resources = ResourceSet::new().with(ResourceKind::CpuCores, 1);
+        assert!(small.check_against(&intent).is_err());
+
+        // More than needed is fine.
+        let mut big = ok;
+        big.resources = ResourceSet::new().with(ResourceKind::CpuCores, 8);
+        big.check_against(&intent).unwrap();
+    }
+
+    #[test]
     fn full_lifecycle() {
         let mut r = Reservation::request(spec(LogicalTime::new(100))).unwrap();
         assert_eq!(r.state, ReservationState::Requested);

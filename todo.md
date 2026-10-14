@@ -114,15 +114,16 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [ ] Remove or use `CanonicalError::Encode`; make `encode_envelope` fallible or document the panic
 
 ## Phase 14 — Semantics Still Open
-- [ ] Evidence assumptions must cap assurance (unsupported assumption => lower level)
-- [ ] Trusted-kernel allowlist for `Proof` evidence; check scope/environment match
-- [ ] Dependency levels must match subject/scope, not only property name
-- [ ] Replace the total `AssuranceLevel` order with a partial order or configurable lattice
-- [ ] Traces: keep event order/multiplicity; causal-order replay worklist; detect reordering
-- [ ] `Execution` identity should exclude mutable outcome/finish state (match Capability/Reservation)  (identity part still open; `finish` now validates `finished_at >= started_at` and single use)
+- [x] Undischarged assumptions reported on every assessment; opt-in strict policy (no invented numeric cap)
+- [x] Trusted-kernel allowlist for `Proof` evidence (`AssessmentPolicy`); scope/environment matching still open
+- [x] Decided: dependencies legitimately cover other subjects (a database claim depends on a WAL claim); matching stays by property name, documented
+- [x] Decided: keep the total order, documented as a strength ranking; express other needs as per-property obligations
+- [x] Traces: multiplicity kept; deterministic causal order; causal replay worklist
+- [x] `Execution` identity excludes mutable outcome/finish state; `finish` validates ordering and single use
 - [x] Memoize `Claim::assess` on shared dependencies (diamond graphs were exponential)
-- [ ] `validate()` on `Canonical`, called from decode, so deserialized values uphold constructor invariants
-- [ ] Intent <-> Capability <-> Reservation coherence check
+- [x] `validate()` on `Canonical`, called from decode (Lease, CapabilityGrant, ReservationSpec, Execution; label newtypes)
+- [x] Reservation <-> Intent coherence (`ReservationSpec::check_against`)
+- [ ] Intent <-> Capability coherence (needs leases/epochs/ancestors supplied by the caller)
 
 ## Phase 15 — Encoding Decisions (breaking; decide before anything persists)
 - [x] Adopt RFC 8949 section 4.2 key ordering (ADR 0003)
@@ -132,8 +133,9 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [ ] Check hand-written CDDL against the types, not only the checked-in files
 
 ## Phase 16 — Signing and Attestation
-- [ ] `Signed<T>` envelope (Ed25519 + key id) for capabilities, evidence, provenance
-- [ ] Replace free-text `produced_by` with a verifiable signer
+- [x] `Signed<T>` envelope (Ed25519) for any identified object — `tpt-sign`, ADR 0004
+- [ ] Replace free-text `produced_by` with a verifiable signer (key -> principal mapping is Fabric/Concord policy)
+- [ ] Key rotation/revocation story; countersigning shape if a real need appears
 
 ## Phase 17 — Tooling and Adoption
 - [x] `tpt` CLI: `inspect`, `id`, `diff` (`verify`/`explain` still open)

@@ -2280,6 +2280,54 @@
       "title": "Execution",
       "type": "object"
     },
+    "ExecutionSpec": {
+      "$defs": {
+        "LogicalTime": {
+          "description": "A monotonically increasing tick count.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "TptId_tpt_computation_v1": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "TptId_tpt_world_v1": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "description": "The identity-bearing part of an [`Execution`]: what ran, in which world,\nwhich attempt, starting when. Outcome, finish time and trace are\nrecorded later and must not change who the execution *is* (the same\npattern as `Capability` and `Reservation`).",
+      "properties": {
+        "attempt": {
+          "description": "Attempt number, starting at 1.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "computation": {
+          "$ref": "#/$defs/TptId_tpt_computation_v1",
+          "description": "The computation executed."
+        },
+        "started_at": {
+          "$ref": "#/$defs/LogicalTime",
+          "description": "Logical tick at which the execution started."
+        },
+        "world": {
+          "$ref": "#/$defs/TptId_tpt_world_v1",
+          "description": "The world it ran in."
+        }
+      },
+      "required": [
+        "computation",
+        "world",
+        "attempt",
+        "started_at"
+      ],
+      "title": "ExecutionSpec",
+      "type": "object"
+    },
     "TraceEvent": {
       "$defs": {
         "PrimitiveValue": {
@@ -2521,7 +2569,7 @@
       "description": "A trace: the canonical record of one execution's relevant events.",
       "properties": {
         "events": {
-          "description": "Events, stored in canonical (identity-sorted) order.",
+          "description": "Events as recorded; identity uses the normalized causal order.",
           "items": {
             "$ref": "#/$defs/TraceEvent"
           },
@@ -2792,7 +2840,7 @@
     },
     "AssuranceLevel": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "description": "The assurance hierarchy (spec §23, §24), ordered weakest → strongest.",
+      "description": "The assurance hierarchy (spec §23, §24), ordered weakest → strongest.\n\nThis is a *strength ranking*, not a claim that, say, a conformance suite\nlogically implies a simulation run. It decides which of several passing\nresults to report and whether an obligation's minimum is met. Callers\nwho need a different ranking should express it as obligations on\nspecific properties rather than reordering levels.",
       "oneOf": [
         {
           "const": "unknown",
@@ -2845,7 +2893,7 @@
     "Obligation": {
       "$defs": {
         "AssuranceLevel": {
-          "description": "The assurance hierarchy (spec §23, §24), ordered weakest → strongest.",
+          "description": "The assurance hierarchy (spec §23, §24), ordered weakest → strongest.\n\nThis is a *strength ranking*, not a claim that, say, a conformance suite\nlogically implies a simulation run. It decides which of several passing\nresults to report and whether an obligation's minimum is met. Callers\nwho need a different ranking should express it as obligations on\nspecific properties rather than reordering levels.",
           "oneOf": [
             {
               "const": "unknown",
@@ -3418,7 +3466,7 @@
           "type": "object"
         },
         "AssuranceLevel": {
-          "description": "The assurance hierarchy (spec §23, §24), ordered weakest → strongest.",
+          "description": "The assurance hierarchy (spec §23, §24), ordered weakest → strongest.\n\nThis is a *strength ranking*, not a claim that, say, a conformance suite\nlogically implies a simulation run. It decides which of several passing\nresults to report and whether an obligation's minimum is met. Callers\nwho need a different ranking should express it as obligations on\nspecific properties rather than reordering levels.",
           "oneOf": [
             {
               "const": "unknown",

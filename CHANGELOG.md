@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tpt-sign` crate: `Signer`, `Signed<T>`, `PublicKey`, `Signature`
+  (Ed25519 over a domain-separated identity; decoding verifies). ADR 0004,
+  `testvectors/signed-v1.json`, example `signed_evidence`.
+- `AssessmentPolicy` with `Claim::assess_with_policy`: optional trusted proof
+  kernels and strict assumption discharge. `ClaimAssessment` now lists
+  `undischarged_assumptions` (propagated through dependencies).
+- `ReservationSpec::check_against(&Intent)`.
 - `valid_authority_with_ancestors`: delegation-chain check, so revoking a
   parent capability invalidates its descendants.
 - `Capability::transfer_with_lease` and `CapabilityError::LeaseBound`.
@@ -24,6 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Behavior:** `Execution::identity()` now derives from `ExecutionSpec`
+  (computation, world, attempt, start) only; outcome, finish time and trace
+  no longer change an execution's identity. New `Execution::spec()`.
+- **Behavior:** trace normalization is now a deterministic causal order
+  (parents first, ties by identity) that keeps repeated events; it no longer
+  sorts by hash and collapses duplicates. `replay_worklist` is in causal
+  order and `compare_replay` counts multiplicity.
+- **Behavior:** `Canonical::from_canonical_bytes` runs the new
+  `Canonical::validate`, enforced for `Lease`, `CapabilityGrant`,
+  `ReservationSpec` and `Execution`; `Principal` and `AuthorityDomain`
+  reject empty labels when deserialized.
 - **Breaking encoding (pre-release, ADR 0003):** map keys now use RFC 8949
   section 4.2.1 order, and identities are 32-byte byte strings in canonical
   CBOR (hex only in JSON). Every identity differs from earlier builds; the

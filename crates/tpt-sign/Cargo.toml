@@ -1,0 +1,19 @@
+[package]
+name = "tpt-sign"
+description = "Ed25519 signatures over TPT canonical object identities"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+tpt-primitives = { path = "../tpt-primitives" }
+ed25519-dalek = "2"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"
+
+[lints]
+workspace = true

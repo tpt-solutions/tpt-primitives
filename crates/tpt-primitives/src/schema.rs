@@ -136,6 +136,8 @@ provenance = tpt-envelope<{
 ; execution.rs
 execution-outcome = ({"outcome": "succeeded", artifacts: [* tpt-id]}
                    // {"outcome": "failed", reason: text})
+; identity-bearing part of an execution (outcome/finish/trace are not identity)
+execution-spec = tpt-envelope<{ computation: tpt-id, world: tpt-id, attempt: uint, started_at: uint }>
 execution = tpt-envelope<{
   computation: tpt-id, world: tpt-id, attempt: uint,
   started_at: uint, ?finished_at: uint, ?outcome: execution-outcome,
@@ -292,6 +294,7 @@ pub fn entries() -> Vec<SchemaEntry> {
             exe::ExecutionOutcome
         ),
         entry!("Execution", "; See prelude.\n", exe::Execution),
+        entry!("ExecutionSpec", "; See prelude.\n", exe::ExecutionSpec),
         entry!("TraceEvent", "; See prelude.\n", exe::TraceEvent),
         entry!("Trace", "; See prelude.\n", exe::Trace),
         entry!("EvidenceKind", "; See prelude.\n", ev::EvidenceKind),
