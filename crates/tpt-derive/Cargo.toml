@@ -7,6 +7,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+readme = "README.md"
+keywords = ["derive", "proc-macro", "canonical", "serde", "tpt"]
+categories = ["development-tools::procedural-macro-helpers"]
 
 [lib]
 proc-macro = true

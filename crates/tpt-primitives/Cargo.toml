@@ -6,9 +6,9 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-readme.workspace = true
-keywords = ["tpt", "capability", "provenance", "assurance", "reproducibility"]
-categories = ["data-structures"]
+readme = "README.md"
+keywords = ["capability", "provenance", "assurance", "reproducibility", "canonical"]
+categories = ["data-structures", "encoding"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

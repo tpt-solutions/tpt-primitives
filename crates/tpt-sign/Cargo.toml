@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
+readme = "README.md"
+keywords = ["ed25519", "signature", "provenance", "attestation", "canonical"]
+categories = ["cryptography"]
 
 [dependencies]
 tpt-primitives = { path = "../tpt-primitives" }
