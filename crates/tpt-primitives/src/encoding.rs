@@ -12,7 +12,7 @@
 //! fields, `BTreeSet`/`BTreeMap` only, no floats — is documented in
 //! `docs/decisions/0001-canonical-encoding-and-identity.md`.
 //!
-//! Serde does the typed work through `cbor4ii`. The [`cbor`](crate::cbor)
+//! Serde does the typed work through `cbor4ii`. The [`cbor`]
 //! module puts map keys into bytewise order and splits the envelope.
 
 use alloc::string::{String, ToString};
