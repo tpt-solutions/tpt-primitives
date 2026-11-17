@@ -12,6 +12,16 @@
 //! state lives beside it, so a reservation keeps its identity from
 //! `requested` through `released`.
 
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::canonical::{Canonical, Identified};
@@ -160,8 +170,8 @@ pub enum ReservationError {
     ReasonRequired,
 }
 
-impl std::fmt::Display for ReservationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for ReservationError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::InvalidTransition { from, to } => {
                 write!(f, "illegal reservation transition {from:?} → {to:?}")
@@ -177,7 +187,7 @@ impl std::fmt::Display for ReservationError {
     }
 }
 
-impl std::error::Error for ReservationError {}
+impl core::error::Error for ReservationError {}
 
 impl Canonical for Reservation {
     const SCHEMA_VERSION: u16 = 2;

@@ -9,7 +9,17 @@
 //! fixed CBOR major type (text → string, bytes → byte string, etc.),
 //! keeping the canonical encoding fully explicit.
 
-use std::collections::BTreeMap;
+use alloc::collections::BTreeMap;
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 use serde::de::{Deserializer, Visitor};
 use serde::ser::Serializer;
@@ -62,7 +72,7 @@ impl<'de> Deserialize<'de> for PrimitiveValue {
         struct ValueVisitor;
         impl Visitor<'_> for ValueVisitor {
             type Value = PrimitiveValue;
-            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn expecting(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 f.write_str("a canonical primitive value")
             }
             fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {

@@ -6,7 +6,17 @@
 //! happen on failure. Fabric owns execution semantics; this type is the
 //! canonical description Fabric and the ecosystem share.
 
-use std::collections::BTreeSet;
+use alloc::collections::BTreeSet;
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 use serde::{Deserialize, Serialize};
 

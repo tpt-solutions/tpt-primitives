@@ -1,5 +1,15 @@
 //! Hash function used for identity derivation (ADR 0001: SHA-256).
 
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use sha2::{Digest, Sha256};
 
 /// Compute the SHA-256 digest of `data` (ADR 0001).

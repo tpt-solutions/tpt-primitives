@@ -11,6 +11,16 @@
 //! addresses, mutable labels or wall-clock timestamps (spec §3, ADR 0001).
 
 use crate::id::{AnyId, Id, IdClass};
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 macro_rules! identity_class {
     ($(#[$meta:meta])* $marker:ident, $alias:ident, $domain:literal;) => {
@@ -153,7 +163,7 @@ mod tests {
 
     #[test]
     fn all_fifteen_classes_are_distinct_domains() {
-        let domains: std::collections::BTreeSet<&str> = CLASSES.iter().map(|(d, _)| *d).collect();
+        let domains: alloc::collections::BTreeSet<&str> = CLASSES.iter().map(|(d, _)| *d).collect();
         assert_eq!(domains.len(), CLASSES.len(), "domain labels must be unique");
         // The fifteen shared classes from spec §3.
         for domain in [

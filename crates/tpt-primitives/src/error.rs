@@ -1,6 +1,16 @@
 //! Errors produced by canonical encoding and decoding.
 
-use std::fmt;
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::fmt;
 
 /// Errors from the canonical encoding layer.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,4 +66,4 @@ impl fmt::Display for CanonicalError {
     }
 }
 
-impl std::error::Error for CanonicalError {}
+impl core::error::Error for CanonicalError {}

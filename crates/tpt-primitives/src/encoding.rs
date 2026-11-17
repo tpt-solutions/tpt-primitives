@@ -11,10 +11,16 @@
 //! (see `docs/evolution.md`). The deterministic profile — declaration-order
 //! fields, `BTreeSet`/`BTreeMap` only, no floats — is documented in
 //! `docs/decisions/0001-canonical-encoding-and-identity.md`.
+//!
+//! Serde does the typed work through `cbor4ii`. The [`cbor`](crate::cbor)
+//! module puts map keys into bytewise order and splits the envelope.
 
-use ciborium::value::Value;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+
 use serde::{Serialize, de::DeserializeOwned};
 
+use crate::cbor::{self, Value};
 use crate::error::CanonicalError;
 
 /// Magic identifying bytes produced by this library's canonical encoder.
@@ -28,42 +34,18 @@ const ARRAY_OF_3: u8 = 0x83;
 /// For the types in this crate serialization is infallible (pure in-memory
 /// CBOR, no floats, no maps with non-string keys), so the result is
 /// unwrapped; a bug would panic loudly rather than corrupt identity.
-pub fn encode_envelope<T: Serialize + ?Sized>(schema_version: u16, payload: &T) -> Vec<u8> {
-    let value = Value::serialized(payload)
+pub fn encode_envelope<T: Serialize>(schema_version: u16, payload: &T) -> Vec<u8> {
+    let payload_bytes = cbor4ii::serde::to_vec(Vec::new(), payload)
         .unwrap_or_else(|e| panic!("canonical CBOR encoding is infallible: {e}"));
-    let mut buf = Vec::new();
-    ciborium::ser::into_writer(
-        &(ENVELOPE_MAGIC, schema_version, sort_map_keys(value)),
-        &mut buf,
-    )
-    .unwrap_or_else(|e| panic!("canonical CBOR encoding is infallible: {e}"));
-    buf
-}
-
-/// Apply RFC 8949 §4.2.1 core deterministic map ordering: entries sorted
-/// bytewise by their encoded keys, recursively. Integers are already
-/// shortest-form and lengths definite in ciborium's output; floats never
-/// occur (ADR 0001).
-fn sort_map_keys(value: Value) -> Value {
-    match value {
-        Value::Map(entries) => {
-            let mut keyed: Vec<(Vec<u8>, Value, Value)> = entries
-                .into_iter()
-                .map(|(k, v)| {
-                    let k = sort_map_keys(k);
-                    let mut encoded = Vec::new();
-                    ciborium::ser::into_writer(&k, &mut encoded)
-                        .unwrap_or_else(|e| panic!("canonical CBOR encoding is infallible: {e}"));
-                    (encoded, k, sort_map_keys(v))
-                })
-                .collect();
-            keyed.sort_by(|a, b| a.0.cmp(&b.0));
-            Value::Map(keyed.into_iter().map(|(_, k, v)| (k, v)).collect())
-        }
-        Value::Array(items) => Value::Array(items.into_iter().map(sort_map_keys).collect()),
-        Value::Tag(tag, inner) => Value::Tag(tag, Box::new(sort_map_keys(*inner))),
-        other => other,
-    }
+    let payload_value = cbor::decode(&payload_bytes)
+        .unwrap_or_else(|e| panic!("canonical CBOR encoding is infallible: {e}"));
+    let envelope = Value::Array(alloc::vec![
+        Value::Text(ENVELOPE_MAGIC.into()),
+        Value::Integer(i128::from(schema_version)),
+        payload_value,
+    ]);
+    cbor::encode_canonical(&envelope)
+        .unwrap_or_else(|e| panic!("canonical CBOR encoding is infallible: {e}"))
 }
 
 /// Decode canonical bytes, returning the schema version and payload.
@@ -71,67 +53,43 @@ fn sort_map_keys(value: Value) -> Value {
 /// Strict by design: the magic and schema version are checked and any
 /// trailing bytes after the payload are rejected.
 pub fn decode_envelope<T: DeserializeOwned>(bytes: &[u8]) -> Result<(u16, T), CanonicalError> {
-    let mut cursor = CountingCursor::new(bytes);
-    let header = cursor.read_u8().ok_or(CanonicalError::NotAnEnvelope)?;
-    if header != ARRAY_OF_3 {
+    if bytes.first() != Some(&ARRAY_OF_3) {
         return Err(CanonicalError::NotAnEnvelope);
     }
-    let magic: String = ciborium::de::from_reader(&mut cursor).map_err(|e| cbor(&e))?;
+    let mut rest = &bytes[1..];
+    let magic: String = take_item(&mut rest)?;
     if magic != ENVELOPE_MAGIC {
         return Err(CanonicalError::UnknownMagic(magic));
     }
-    let version: u16 = ciborium::de::from_reader(&mut cursor).map_err(|e| cbor(&e))?;
-    let payload: T = ciborium::de::from_reader(&mut cursor).map_err(|e| cbor(&e))?;
-    if cursor.position() != bytes.len() {
-        return Err(CanonicalError::TrailingBytes(
-            bytes.len() - cursor.position(),
-        ));
+    let version: u16 = take_item(&mut rest)?;
+    let payload: T = take_item(&mut rest)?;
+    if !rest.is_empty() {
+        return Err(CanonicalError::TrailingBytes(rest.len()));
     }
     Ok((version, payload))
 }
 
-fn cbor(e: &ciborium::de::Error<std::io::Error>) -> CanonicalError {
-    CanonicalError::Decode(e.to_string())
+/// Splits one well-formed item off the front of `rest` and deserializes it.
+fn take_item<T: DeserializeOwned>(rest: &mut &[u8]) -> Result<T, CanonicalError> {
+    let len = cbor::item_len(rest).map_err(cbor_error)?;
+    let (item, tail) = rest.split_at(len);
+    *rest = tail;
+    cbor4ii::serde::from_slice(item).map_err(|e| CanonicalError::Decode(e.to_string()))
 }
 
-/// A `Read` adapter over a byte slice that tracks how much was consumed,
-/// so decoded payloads can be checked for exact consumption.
-struct CountingCursor<'a> {
-    data: &'a [u8],
-    pos: usize,
-}
-
-impl<'a> CountingCursor<'a> {
-    fn new(data: &'a [u8]) -> Self {
-        Self { data, pos: 0 }
-    }
-
-    fn position(&self) -> usize {
-        self.pos
-    }
-
-    fn read_u8(&mut self) -> Option<u8> {
-        let b = self.data.get(self.pos).copied();
-        if b.is_some() {
-            self.pos += 1;
-        }
-        b
-    }
-}
-
-impl std::io::Read for CountingCursor<'_> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let remaining = &self.data[self.pos.min(self.data.len())..];
-        let n = remaining.len().min(buf.len());
-        buf[..n].copy_from_slice(&remaining[..n]);
-        self.pos += n;
-        Ok(n)
+fn cbor_error(e: cbor::Error) -> CanonicalError {
+    match e {
+        // Indefinite lengths have no canonical form, so report them as such.
+        cbor::Error::Indefinite => CanonicalError::NonCanonical,
+        other => CanonicalError::Decode(other.to_string()),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cbor::Value;
+    use alloc::{string::ToString, vec};
 
     #[test]
     fn envelope_round_trip() {
@@ -155,8 +113,7 @@ mod tests {
 
     #[test]
     fn rejects_unknown_magic() {
-        let mut buf = Vec::new();
-        ciborium::ser::into_writer(&("other-magic", 1u16, "x"), &mut buf).unwrap();
+        let buf = cbor4ii::serde::to_vec(Vec::new(), &("other-magic", 1u16, "x")).unwrap();
         assert!(matches!(
             decode_envelope::<String>(&buf),
             Err(CanonicalError::UnknownMagic(_))
@@ -196,9 +153,9 @@ mod tests {
         };
         let keys: Vec<_> = entries
             .iter()
-            .map(|(k, _)| k.as_text().unwrap().to_owned())
+            .map(|(k, _)| k.as_text().unwrap().to_string())
             .collect();
-        assert_eq!(keys, ["b", "aa", "zebra"]);
+        assert_eq!(keys, vec!["b", "aa", "zebra"]);
     }
 
     #[test]

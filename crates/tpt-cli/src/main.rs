@@ -12,8 +12,8 @@
 use std::io::Read;
 use std::process::ExitCode;
 
-use ciborium::value::Value;
 use serde_json::{Map, json};
+use tpt_primitives::cbor::Value;
 use tpt_primitives::encoding::{decode_envelope, encode_envelope};
 use tpt_primitives::hash::{from_hex_vec, sha256, to_hex};
 
@@ -132,7 +132,7 @@ fn show(value: Option<&serde_json::Value>) -> String {
 fn to_json(value: &Value) -> serde_json::Value {
     match value {
         Value::Integer(i) => {
-            let n = i128::from(*i);
+            let n = *i;
             u64::try_from(n).map_or_else(
                 |_| i64::try_from(n).map_or_else(|_| json!(n.to_string()), |v| json!(v)),
                 |v| json!(v),
@@ -155,7 +155,7 @@ fn to_json(value: &Value) -> serde_json::Value {
             serde_json::Value::Object(map)
         }
         Value::Tag(_, inner) => to_json(inner),
-        other => json!(format!("{other:?}")),
+        Value::Float(f) => json!(f),
     }
 }
 

@@ -5,6 +5,16 @@
 //! `BTreeMap` of [`PrimitiveValue`][crate::value::PrimitiveValue]s (ADR 0001).
 
 use crate::value::PrimitiveMap;
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use serde::{Deserialize, Serialize};
 
 /// Declared environment variables relevant to a computation or execution.

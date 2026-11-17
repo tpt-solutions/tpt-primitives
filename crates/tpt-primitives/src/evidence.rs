@@ -16,8 +16,18 @@
 //!
 //! Concord owns these primitives.
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
+use alloc::collections::{BTreeMap, BTreeSet};
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -401,7 +411,7 @@ impl fmt::Display for AssessmentError {
     }
 }
 
-impl std::error::Error for AssessmentError {}
+impl core::error::Error for AssessmentError {}
 
 /// Access to the evidence and claims referenced by a claim graph.
 pub trait AssuranceResolver {
@@ -534,7 +544,7 @@ impl Claim {
     /// supports) and an edge from each claim to what it depends on.
     /// Dependencies the resolver cannot find are drawn dashed.
     pub fn to_dot<R: AssuranceResolver>(&self, resolver: &R) -> String {
-        use std::fmt::Write as _;
+        use core::fmt::Write as _;
 
         fn quote(text: &str) -> String {
             text.replace('\\', "\\\\").replace('"', "\\\"")
@@ -1441,7 +1451,7 @@ mod tests {
 
     #[test]
     fn shared_dependencies_are_assessed_once() {
-        use std::cell::Cell;
+        use core::cell::Cell;
 
         struct Counting {
             inner: AssuranceStore,

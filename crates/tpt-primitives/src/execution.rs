@@ -11,7 +11,17 @@
 //! sets of event identities — normalization is order-free and divergence
 //! detection is exact.
 
-use std::collections::BTreeSet;
+use alloc::collections::BTreeSet;
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -262,7 +272,7 @@ impl Trace {
     /// three ticks are not one), and parents not present in the trace are
     /// ignored for ordering.
     pub fn normalized(&self) -> Self {
-        use std::collections::BTreeMap;
+        use alloc::collections::BTreeMap;
 
         let ids: Vec<TraceEventId> = self.events.iter().map(TraceEvent::identity).collect();
         let known: BTreeSet<TraceEventId> = ids.iter().copied().collect();
@@ -324,7 +334,7 @@ impl Trace {
     /// reordering of independent events is not (it is not observable in
     /// the causal record).
     pub fn compare_replay(&self, replay: &Trace) -> TraceComparison {
-        use std::collections::BTreeMap;
+        use alloc::collections::BTreeMap;
 
         fn counts(ids: Vec<TraceEventId>) -> BTreeMap<TraceEventId, usize> {
             let mut map = BTreeMap::new();

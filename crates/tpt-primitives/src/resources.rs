@@ -2,8 +2,18 @@
 //! reservations (spec §8), computations (spec §9) and execution worlds
 //! (spec §16).
 
-use std::collections::BTreeMap;
-use std::fmt;
+use alloc::collections::BTreeMap;
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::fmt;
 
 use serde::{Deserialize, Serialize};
 

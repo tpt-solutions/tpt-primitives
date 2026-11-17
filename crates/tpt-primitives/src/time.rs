@@ -6,6 +6,16 @@
 //! deployments map ticks to wall-clock time at their boundary; the
 //! primitive itself stays deterministic and simulation-first (spec §22).
 
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use serde::{Deserialize, Serialize};
 
 /// A monotonically increasing tick count.
@@ -55,8 +65,8 @@ impl LogicalTime {
     }
 }
 
-impl std::fmt::Display for LogicalTime {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for LogicalTime {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "t{}", self.0)
     }
 }

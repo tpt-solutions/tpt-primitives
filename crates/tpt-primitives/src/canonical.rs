@@ -11,6 +11,16 @@
 //! Changing irrelevant presentation must not change identity; changing
 //! semantics must.
 
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::encoding;
@@ -163,13 +173,12 @@ mod tests {
         let mut bytes = vec![0x83, 0x6d];
         bytes.extend(b"tpt-canonical");
         bytes.extend([0x18, 0x01]);
-        let mut payload = Vec::new();
-        ciborium::ser::into_writer(
+        let payload = cbor4ii::serde::to_vec(
+            Vec::new(),
             &Demo {
                 name: "demo".into(),
                 value: 42,
             },
-            &mut payload,
         )
         .unwrap();
         bytes.extend(payload);

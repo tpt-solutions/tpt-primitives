@@ -12,7 +12,17 @@
 //! explicitly reports one of five outcomes (spec §17). This crate defines
 //! the canonical shapes; running reproductions is Repro's job.
 
-use std::collections::{BTreeMap, BTreeSet};
+use alloc::collections::{BTreeMap, BTreeSet};
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 use serde::{Deserialize, Serialize};
 

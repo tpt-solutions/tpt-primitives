@@ -9,8 +9,18 @@
 //! filenames, auto-increment counters, addresses, mutable labels or
 //! wall-clock timestamps (spec §3).
 
-use std::fmt;
-use std::marker::PhantomData;
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::fmt;
+use core::marker::PhantomData;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -94,18 +104,18 @@ impl<T: IdClass> PartialEq for Id<T> {
 impl<T: IdClass> Eq for Id<T> {}
 
 impl<T: IdClass> PartialOrd for Id<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 impl<T: IdClass> Ord for Id<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.bytes.cmp(&other.bytes)
     }
 }
 
-impl<T: IdClass> std::hash::Hash for Id<T> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl<T: IdClass> core::hash::Hash for Id<T> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.bytes.hash(state);
     }
 }
@@ -160,8 +170,8 @@ impl<'de, T: IdClass> Deserialize<'de> for Id<T> {
 
 // `schemars` support: every identity renders as a lowercase 64-char hex string.
 impl<T: IdClass> schemars::JsonSchema for Id<T> {
-    fn schema_name() -> std::borrow::Cow<'static, str> {
-        std::borrow::Cow::Owned(format!("TptId_{}", sanitize(T::DOMAIN)))
+    fn schema_name() -> alloc::borrow::Cow<'static, str> {
+        alloc::borrow::Cow::Owned(format!("TptId_{}", sanitize(T::DOMAIN)))
     }
 
     fn json_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
@@ -258,9 +268,9 @@ mod tests {
     fn cbor_carries_raw_bytes_and_json_carries_hex() {
         let id = TestId::derive(b"wire");
         let bytes = crate::encoding::encode_envelope(1, &id);
-        let (_, value): (u16, ciborium::value::Value) =
+        let (_, value): (u16, crate::cbor::Value) =
             crate::encoding::decode_envelope(&bytes).unwrap();
-        assert_eq!(value, ciborium::value::Value::Bytes(id.as_bytes().to_vec()));
+        assert_eq!(value, crate::cbor::Value::Bytes(id.as_bytes().to_vec()));
 
         let json = serde_json::to_string(&id).unwrap();
         assert_eq!(json, format!("\"{}\"", id.hex()));

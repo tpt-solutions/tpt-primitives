@@ -14,6 +14,16 @@
 //! tpt-envelope<V> = ["tpt-canonical", version: uint, payload: V]
 //! ```
 
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 /// A registry entry: type name, CDDL definition, and a JSON Schema factory.
 #[derive(Debug)]
 pub struct SchemaEntry {
@@ -359,8 +369,7 @@ mod tests {
     fn json_schema_factories_produce_schemas() {
         for entry in entries() {
             let schema = (entry.json_schema)();
-            let mut buf = Vec::new();
-            ciborium::ser::into_writer(&schema, &mut buf).expect("schema serializes");
+            let buf = cbor4ii::serde::to_vec(Vec::new(), &schema).expect("schema serializes");
             assert!(!buf.is_empty(), "{} must produce a schema", entry.name);
         }
     }

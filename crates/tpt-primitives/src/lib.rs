@@ -24,6 +24,7 @@
 //! Identity is `SHA-256` over a schema-versioned deterministic CBOR
 //! envelope (see `docs/decisions/0001-canonical-encoding-and-identity.md`).
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 

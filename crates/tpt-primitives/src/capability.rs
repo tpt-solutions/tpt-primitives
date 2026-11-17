@@ -19,8 +19,18 @@
 //! separately in [`Capability::status`] so that revoking a capability does
 //! not change its identity.
 
-use std::collections::BTreeSet;
-use std::fmt;
+use alloc::collections::BTreeSet;
+#[cfg(not(feature = "std"))]
+#[allow(unused_imports)]
+use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -538,7 +548,7 @@ impl fmt::Display for CapabilityError {
     }
 }
 
-impl std::error::Error for CapabilityError {}
+impl core::error::Error for CapabilityError {}
 
 /// Errors from the composed valid-authority check (spec §5–6).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -638,7 +648,7 @@ impl fmt::Display for AuthorityError {
     }
 }
 
-impl std::error::Error for AuthorityError {}
+impl core::error::Error for AuthorityError {}
 
 /// The composed valid-authority check (spec §5–6):
 /// `capability + lease + epoch → valid authority`.
@@ -1066,9 +1076,9 @@ mod tests {
         // CBOR null would make the bytes disagree with the spec.
         let grant = root_capability().grant;
         assert!(grant.parent.is_none() && grant.lease.is_none());
-        let (_, value): (u16, ciborium::value::Value) =
+        let (_, value): (u16, crate::cbor::Value) =
             crate::encoding::decode_envelope(&grant.canonical_bytes()).unwrap();
-        let ciborium::value::Value::Map(entries) = value else {
+        let crate::cbor::Value::Map(entries) = value else {
             panic!("grant payload is a map")
         };
         let keys: Vec<&str> = entries.iter().filter_map(|(k, _)| k.as_text()).collect();
@@ -1077,7 +1087,7 @@ mod tests {
         assert!(
             !entries
                 .iter()
-                .any(|(_, v)| matches!(v, ciborium::value::Value::Null)),
+                .any(|(_, v)| matches!(v, crate::cbor::Value::Null)),
             "no optional may be encoded as null"
         );
     }
