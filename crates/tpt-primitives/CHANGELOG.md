@@ -9,6 +9,10 @@ and this crate adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ### Added
 
+- `no_std` build with `alloc`; `std` is a default feature that enables the
+  std-backed impls of the dependencies and `std::error::Error`.
+- `cbor` module: the in-crate CBOR tree (`cbor::Value`) and deterministic
+  profile writer.
 - `ScopeRequirement` (platform, toolchain and required environment variables)
   and `Claim::requirement`; `Evidence::platform`.
 - `AssessmentPolicy` with `Claim::assess_with_policy`: optional trusted proof
@@ -26,6 +30,9 @@ and this crate adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ### Changed
 
+- CBOR no longer uses `ciborium` (Apache-2.0 only, and it needs `std`). Typed
+  (de)serialization goes through `cbor4ii`. Canonical bytes are unchanged; the
+  golden vectors pass without edits.
 - **Breaking encoding (ADR 0005):** every canonical type is schema version 2.
   Absent optional fields are omitted from canonical CBOR instead of encoded as
   `null`, matching the CDDL `?` notation.

@@ -11,4 +11,11 @@ and this crate adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 - `tpt` binary with `inspect`, `id` and `diff` subcommands.
 
+### Changed
+
+- No longer depends on `ciborium`; CBOR values come from
+  `tpt_primitives::cbor::Value`.
+- `inspect` renders CBOR floats as JSON numbers. Previously they were printed
+  as a Rust debug string.
+
 [Unreleased]: https://tpt.example/tpt-primitives/compare/v0.1.0...HEAD

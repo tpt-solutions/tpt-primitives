@@ -64,6 +64,7 @@ New here? Start with [`docs/getting-started.md`](docs/getting-started.md): a
 - `crates/tpt-primitives` — the core library.
 - `crates/tpt-cli` — the `tpt` command: `inspect`, `id` and `diff` for canonical objects.
 - `crates/tpt-sign` — optional Ed25519 signatures over object identities (`Signed<T>`).
+- `crates/tpt-derive` — `#[derive(Canonical)]` proc-macro for canonical types.
 - `testvectors/` — golden bytes and identities, plus an independent Python verifier.
 - `crates/schema-gen` — tool that generates JSON Schema / CDDL from the
   canonical types into `schemas/` (CI fails if the checked-in schemas drift).

@@ -144,7 +144,8 @@ License: dual MIT OR Apache-2.0, © TPT Solutions.
 - [x] `Claim::to_dot()` assurance-graph visualizer
 - [x] `prelude` module
 - [x] `#[derive(Canonical)]` (`tpt-derive`): version, identity class and validate hook; existing hand impls left as they are
-- [ ] Feature flags: `schema` (drop schemars), `no_std`
+- [x] `no_std` feature (2026-11-16): `#![no_std]` + `alloc` build for the bare-metal target; `std` is a default feature. CBOR moved off `ciborium` to `cbor4ii` with an in-crate tree for canonical ordering; canonical bytes unchanged.
+- [ ] Feature flag `schema` to drop schemars (schemars is still a required, no_std-capable dependency)
 - [x] `proptest` round-trip/identity tests incl. decoder robustness
 - [x] `cargo-fuzz` target for the decoders (`fuzz/`); CI smoke run. Not run on the Windows dev box: libFuzzer needs nightly and a sanitizer toolchain
 - [ ] `templates/` (CI build attestation, model-check claim, reproducible-build record)

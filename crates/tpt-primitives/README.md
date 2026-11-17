@@ -55,6 +55,12 @@ See `examples/` for capability delegation and the assurance graph.
 Pre-1.0. Canonical encodings may change between minor releases; each change is
 recorded in [CHANGELOG.md](CHANGELOG.md) together with the ADR that justifies it.
 
+The crate builds `#![no_std]` with `alloc`. The default `std` feature enables
+the std-backed impls of its dependencies and `std::error::Error`; disable
+default features for bare-metal or embedded targets.
+
+`#[derive(Canonical)]` is provided by the companion `tpt-derive` crate.
+
 ## License
 
 Dual-licensed under MIT or Apache-2.0, at your option.

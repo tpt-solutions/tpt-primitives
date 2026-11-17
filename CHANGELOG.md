@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `fuzz/` cargo-fuzz target for the canonical decoders.
 - cargo-deny policy (`deny.toml`), `rust-version = "1.88"`, and CI jobs for
   MSRV, dependency policy and a fuzz smoke run.
-
+- `no_std` build of `tpt-primitives` with `alloc`; `std` is a default feature.
 - `ScopeRequirement` (platform, toolchain and required environment variables)
   and `Claim::requirement`; `Evidence::platform`.
 
@@ -39,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- CBOR no longer uses `ciborium` (Apache-2.0 only, and it needs `std`). Typed
+  (de)serialization goes through `cbor4ii`; a small in-crate `cbor` module
+  parses bytes into a tree and writes the deterministic profile (shortest
+  heads, definite lengths, map keys sorted by encoded bytes). Canonical bytes
+  are unchanged; the golden vectors pass without edits.
+- `tpt-cli` uses `tpt_primitives::cbor::Value` instead of `ciborium::Value`.
 - **Breaking encoding (ADR 0005):** every canonical type is schema version 2.
   Absent optional fields are omitted from canonical CBOR instead of encoded as
   `null`, matching the CDDL `?` notation.
