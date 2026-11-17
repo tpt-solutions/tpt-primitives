@@ -27,8 +27,11 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+extern crate alloc;
+
 pub mod canonical;
 pub mod capability;
+pub mod cbor;
 pub mod computation;
 pub mod encoding;
 pub mod environment;
