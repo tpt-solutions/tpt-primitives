@@ -14,13 +14,13 @@ categories = ["data-structures", "encoding"]
 # `no_std` + `alloc` is the base. `std` adds the std-backed impls of the
 # dependencies and the std::error::Error impls.
 default = ["std"]
-std = ["serde/std", "cbor4ii/use_std", "sha2/std", "schemars/std"]
+std = ["serde/std", "cbor4ii/use_std", "schemars/std"]
 
 [dependencies]
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 # CBOR for the serde layer. `serde1` pulls in alloc and nothing else.
 cbor4ii = { version = "1", default-features = false, features = ["serde1"] }
-sha2 = { version = "0.10", default-features = false }
+sha2 = { version = "0.11", default-features = false }
 schemars = { version = "1", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
